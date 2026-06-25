@@ -1,0 +1,82 @@
+{
+  "profiles": [
+    {
+      "id": "admin-uuid-0001-0001-000000000001",
+      "username": "Admin",
+      "email": "admin@crm.com",
+      "password": "$2b$10$IcH820CAncuUhXimAuWfEuVeroiwxEYrcKHub3TuXReO45Sfx.Fye",
+      "role": "Admin",
+      "designation": "System Administrator"
+    },
+    {
+      "id": "staff-uuid-0001-0001-000000000001",
+      "username": "Siva",
+      "email": "siva@crm.com",
+      "password": "$2b$10$IcH820CAncuUhXimAuWfEuVeroiwxEYrcKHub3TuXReO45Sfx.Fye",
+      "role": "Staff",
+      "designation": "Developer"
+    },
+    {
+      "id": "staff-uuid-0001-0001-000000000002",
+      "username": "Kumar",
+      "email": "kumar@crm.com",
+      "password": "$2b$10$IcH820CAncuUhXimAuWfEuVeroiwxEYrcKHub3TuXReO45Sfx.Fye",
+      "role": "Staff",
+      "designation": "Designer"
+    }
+  ],
+  "tasks": [],
+  "projects": [],
+  "products": [],
+  "leads": [],
+  "quotes": [],
+  "invoices": [],
+  "invoice_line_items": [],
+  "transactions": [],
+  "calendar_events": [],
+  "attendance": [],
+  "attendance_breaks": [],
+  "leaves": [],
+  "meetings": [],
+  "daily_reports": [],
+  "messages": [],
+  "files": [
+    {
+      "name": "genz",
+      "original_name": "genz",
+      "mime_type": "genz",
+      "size": 0,
+      "id": 1,
+      "created_at": "2026-06-23T07:41:28.570Z"
+    },
+    {
+      "name": "genx",
+      "original_name": "genx",
+      "mime_type": "genx",
+      "size": 0,
+      "id": 2,
+      "created_at": "2026-06-23T07:41:36.617Z"
+    },
+    {
+      "name": "linked-image-1782200512778.jpg",
+      "original_name": "linked-image-1782200512778.jpg",
+      "mime_type": "image/link",
+      "size": "root",
+      "path": "dkei",
+      "folder": 0,
+      "id": 3,
+      "created_at": "2026-06-23T07:41:52.824Z"
+    },
+    {
+      "name": "kj",
+      "original_name": "kj",
+      "mime_type": "root",
+      "size": 0,
+      "id": 5,
+      "created_at": "2026-06-23T08:26:43.147Z"
+    }
+  ],
+  "mails": [],
+  "notifications": [],
+  "settings": []
+}

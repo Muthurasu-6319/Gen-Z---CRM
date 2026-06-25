@@ -1,0 +1,136 @@
+// server/index.js
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dummy-secret';
+process.env.JWT_SECRET = JWT_SECRET;
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const db = require('./db');
+
+const app = express();
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// ── Middleware ────────────────────────────────────
+app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ── Routes ───────────────────────────────────────
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/users',         require('./routes/users'));
+app.use('/api/tasks',         require('./routes/tasks'));
+app.use('/api/projects',      require('./routes/projects'));
+app.use('/api/products',      require('./routes/products'));
+app.use('/api/leads',         require('./routes/leads'));
+app.use('/api/quotes',        require('./routes/quotes'));
+app.use('/api/invoices',      require('./routes/invoices'));
+app.use('/api/accounting',    require('./routes/accounting'));
+app.use('/api/calendar',      require('./routes/calendar'));
+app.use('/api/attendance',    require('./routes/attendance'));
+app.use('/api/leave',         require('./routes/leave'));
+app.use('/api/meetings',      require('./routes/meetings'));
+app.use('/api/reports',       require('./routes/reports'));
+app.use('/api/messages',      require('./routes/messages'));
+app.use('/api/files',         require('./routes/files'));
+app.use('/api/mailbox',       require('./routes/mailbox'));
+app.use('/api/settings',      require('./routes/settings'));
+app.use('/api/notifications', require('./routes/notifications'));
+
+// Health check
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+// ── Socket.IO — Team Chat ─────────────────────────
+// Track online users: Map<socketId, { id, username }>
+const onlineUsers = new Map();
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error('Authentication required'));
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded;
+    next();
+  } catch {
+    next(new Error('Invalid token'));
+  }
+});
+
+io.on('connection', (socket) => {
+  const { id, email, role } = socket.user;
+
+    (async () => {
+      try {
+        const [rows] = await db.query('SELECT username FROM profiles WHERE id = ?', [id]);
+        const username = rows[0]?.username || email;
+        socket.user.username = username;
+        onlineUsers.set(socket.id, { id, username });
+        io.emit('presence_update', Array.from(onlineUsers.values()));
+      } catch (e) {
+        // DB unavailable – use email as username
+        const username = email;
+        socket.user.username = username;
+        onlineUsers.set(socket.id, { id, username });
+        io.emit('presence_update', Array.from(onlineUsers.values()));
+      }
+    })();
+
+    (async () => {
+      try {
+        const [msgs] = await db.query(`
+          SELECT m.*, p.username FROM messages m
+          LEFT JOIN profiles p ON m.profile_id = p.id
+          ORDER BY m.created_at ASC LIMIT 100`
+        );
+        socket.emit('chat_history', msgs);
+      } catch (e) {
+        console.warn('Chat history fetch failed, sending empty array');
+        socket.emit('chat_history', []);
+      }
+    })();
+
+    // New message from client
+    socket.on('send_message', async (content) => {
+      if (!content || !content.trim()) return;
+      try {
+        const [result] = await db.query(
+          'INSERT INTO messages (profile_id, content) VALUES (?, ?)',
+          [id, content.trim()]
+        );
+        const [rows] = await db.query(
+          `SELECT m.*, p.username FROM messages m LEFT JOIN profiles p ON m.profile_id = p.id WHERE m.id = ?`,
+          [result.insertId]
+        );
+        io.emit('new_message', rows[0]);
+      } catch (err) {
+        socket.emit('error', 'Failed to send message');
+      }
+    });
+
+    // Typing indicator
+    socket.on('typing', () => {
+      socket.broadcast.emit('user_typing', { id, username });
+    });
+
+    socket.on('disconnect', () => {
+      onlineUsers.delete(socket.id);
+      io.emit('presence_update', Array.from(onlineUsers.values()));
+    });
+  });
+
+
+// ── Start ─────────────────────────────────────────
+const PORT = process.env.PORT || 5001;
+server.listen(PORT, () => {
+  console.log(`\n✅  CRM API Server running on http://localhost:${PORT}`);
+  console.log(`   Socket.IO ready for real-time chat`);
+  console.log(`   MySQL: ${process.env.DB_HOST}/${process.env.DB_NAME}\n`);
+});
+
