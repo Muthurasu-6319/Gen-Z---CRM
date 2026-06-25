@@ -1,0 +1,5 @@
+{
+  "name": "Advanced CRM Dashboard",
+  "description": "A comprehensive CRM application with features like project management, user management, accounting, and more, built with React and Tailwind CSS.",
+  "requestFramePermissions": []
+}
