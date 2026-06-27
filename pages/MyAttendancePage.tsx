@@ -56,6 +56,7 @@ const MyAttendancePage: React.FC<{ title: string }> = ({ title }) => {
                                             {rec.attendance_breaks.map(br => (
                                                 <li key={br.id}>
                                                     {new Date(br.break_start_time).toLocaleTimeString()} - {br.break_end_time ? new Date(br.break_end_time).toLocaleTimeString() : 'Ongoing'}
+                                                    {br.reason && <span className="ml-2 italic text-gray-500">- Reason: {br.reason}</span>}
                                                 </li>
                                             ))}
                                         </ul>

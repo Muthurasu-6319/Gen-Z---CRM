@@ -66,6 +66,18 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
     }
   };
 
+  const handleConvertToClient = async (leadId: number) => {
+    if (window.confirm('Are you sure you want to convert this lead to a Client?')) {
+        try {
+            await api.post(`/api/leads/${leadId}/convert`, {});
+            alert('Successfully converted lead to client! Default password is 12345.');
+            window.location.search = '?page=clients';
+        } catch (err: any) {
+            alert(`Error converting lead: ${err.message || err}`);
+        }
+    }
+  };
+
   const handleDownloadCSV = () => {
     const csv = Papa.unparse(leads.map(({ id, created_at, created_by, ...rest }) => rest));
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -149,6 +161,7 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={lead.notes || ''}>{lead.notes}</td>
                         {/* ^-- NOTES MUDINJATHU --^ */}
                         <td className="px-6 py-4 text-right space-x-2">
+                            <button onClick={() => handleConvertToClient(lead.id)} className="p-1 text-green-500 hover:text-green-700 font-medium text-xs border border-green-500 rounded px-2 py-1 mr-1" title="Convert to Client">Convert</button>
                             {canEdit && <button onClick={() => { setLeadToEdit(lead); setModalOpen(true); }} className="p-1 text-gray-400 hover:text-primary" title="Edit Lead"><PencilIcon className="h-5 w-5"/></button>}
                             {canDelete && <button onClick={() => handleDeleteLead(lead.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Lead"><TrashIcon className="h-5 w-5"/></button>}
                         </td>

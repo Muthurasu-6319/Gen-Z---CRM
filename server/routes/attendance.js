@@ -1,34 +1,31 @@
 // server/routes/attendance.js
 const router = require('express').Router();
-const db = require('../db');
 const auth = require('../middleware/auth');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne } = require('../firebase-admin');
 
 // GET all (admin) or own records
 router.get('/', auth, async (req, res) => {
   try {
-    let rows, breaks;
+    const allAttendance = await getCollection('attendance');
+    const profiles = await getCollection('profiles');
+    
+    // Map profile names
+    const enriched = allAttendance.map(a => {
+      const p = profiles.find(pr => pr.id === a.profile_id);
+      return { ...a, username: p ? p.username : 'Unknown' };
+    });
+
     if (req.user.role === 'Admin') {
-      [rows] = await db.query(
-        `SELECT a.*, p.username FROM attendance a
-         LEFT JOIN profiles p ON a.profile_id = p.id
-         ORDER BY a.date DESC, a.check_in_time DESC`
-      );
-      [breaks] = await db.query('SELECT * FROM attendance_breaks');
+      enriched.sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return new Date(b.check_in_time).getTime() - new Date(a.check_in_time).getTime();
+      });
+      res.json(enriched);
     } else {
-      [rows] = await db.query(
-        `SELECT a.*, p.username FROM attendance a
-         LEFT JOIN profiles p ON a.profile_id = p.id
-         WHERE a.profile_id = ? ORDER BY a.date DESC`,
-        [req.user.id]
-      );
-      [breaks] = await db.query('SELECT * FROM attendance_breaks WHERE entry_id IN (?)',
-        [rows.length ? rows.map(r => r.id) : [0]]);
+      const myAttendance = enriched.filter(a => a.profile_id === req.user.id);
+      myAttendance.sort((a, b) => b.date.localeCompare(a.date));
+      res.json(myAttendance);
     }
-    const result = rows.map(r => ({
-      ...r,
-      attendance_breaks: breaks.filter(b => b.entry_id === r.id)
-    }));
-    res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -36,57 +33,95 @@ router.get('/', auth, async (req, res) => {
 router.post('/checkin', auth, async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   try {
-    const [existing] = await db.query(
-      'SELECT * FROM attendance WHERE profile_id=? AND date=?', [req.user.id, today]
-    );
-    if (existing.length > 0) return res.status(400).json({ error: 'Already checked in today' });
-    const [result] = await db.query(
-      `INSERT INTO attendance (profile_id, date, check_in_time, status) VALUES (?, ?, NOW(), 'Checked In')`,
-      [req.user.id, today]
-    );
-    const [rows] = await db.query('SELECT * FROM attendance WHERE id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    const all = await getCollection('attendance');
+    const existing = all.find(a => a.profile_id === req.user.id && a.date === today);
+    
+    if (existing) {
+      return res.status(400).json({ error: 'Already checked in today' });
+    }
+    
+    const doc = await addDoc('attendance', {
+      profile_id: req.user.id,
+      date: today,
+      check_in_time: new Date().toISOString(),
+      check_out_time: null,
+      status: 'Checked In',
+      attendance_breaks: []
+    });
+    res.status(201).json(doc);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST checkout
 router.post('/checkout/:id', auth, async (req, res) => {
   try {
-    await db.query(
-      `UPDATE attendance SET check_out_time=NOW(), status='Checked Out' WHERE id=?`,
-      [req.params.id]
-    );
-    const [rows] = await db.query('SELECT * FROM attendance WHERE id = ?', [req.params.id]);
-    res.json(rows[0]);
+    const doc = await getDoc('attendance', req.params.id);
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+    if (doc.profile_id !== req.user.id && req.user.role !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const updated = await updateDoc('attendance', req.params.id, {
+      check_out_time: new Date().toISOString(),
+      status: 'Checked Out'
+    });
+    res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST start break
 router.post('/break/start/:id', auth, async (req, res) => {
   try {
-    await db.query(`UPDATE attendance SET status='On Break' WHERE id=?`, [req.params.id]);
-    const [result] = await db.query(
-      `INSERT INTO attendance_breaks (entry_id, break_start_time) VALUES (?, NOW())`, [req.params.id]
-    );
-    const [rows] = await db.query('SELECT * FROM attendance_breaks WHERE id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    const { reason } = req.body;
+    const doc = await getDoc('attendance', req.params.id);
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+    if (doc.profile_id !== req.user.id && req.user.role !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const breaks = doc.attendance_breaks || [];
+    const newBreak = {
+      id: Date.now().toString(),
+      break_start_time: new Date().toISOString(),
+      break_end_time: null,
+      reason: reason || 'Break'
+    };
+    breaks.push(newBreak);
+
+    const updated = await updateDoc('attendance', req.params.id, {
+      status: 'On Break',
+      attendance_breaks: breaks
+    });
+    // Send back the created break id so frontend knows it
+    res.status(201).json({ id: newBreak.id, ...updated });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST end break
 router.post('/break/end/:breakId', auth, async (req, res) => {
   try {
-    await db.query(`UPDATE attendance_breaks SET break_end_time=NOW() WHERE id=?`, [req.params.breakId]);
-    const [brk] = await db.query('SELECT * FROM attendance_breaks WHERE id=?', [req.params.breakId]);
-    await db.query(`UPDATE attendance SET status='Checked In' WHERE id=?`, [brk[0].entry_id]);
-    res.json(brk[0]);
+    const { breakId } = req.params;
+    const all = await getCollection('attendance');
+    const doc = all.find(a => (a.attendance_breaks || []).some(b => b.id === breakId));
+    
+    if (!doc) return res.status(404).json({ error: 'Break not found' });
+    if (doc.profile_id !== req.user.id && req.user.role !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const breaks = doc.attendance_breaks.map(b => {
+      if (b.id === breakId) {
+        return { ...b, break_end_time: new Date().toISOString() };
+      }
+      return b;
+    });
+
+    const updated = await updateDoc('attendance', doc.id, {
+      status: 'Checked In',
+      attendance_breaks: breaks
+    });
+    res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:id', auth, async (req, res) => {
   if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
   try {
-    await db.query('DELETE FROM attendance WHERE id = ?', [req.params.id]);
+    await deleteDoc('attendance', req.params.id);
     res.json({ message: 'Attendance entry deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

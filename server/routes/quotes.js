@@ -11,11 +11,11 @@ router.get('/', auth, async (req, res) => {
 });
 
 router.post('/', auth, async (req, res) => {
-  const { title, description, document_url } = req.body;
+  const { title, description, document_url, client_id } = req.body;
   try {
     const [result] = await db.query(
-      `INSERT INTO quotes (title, description, document_url, created_by) VALUES (?, ?, ?, ?)`,
-      [title, description || null, document_url || null, req.user.id]
+      `INSERT INTO quotes (title, description, document_url, client_id, created_by) VALUES (?, ?, ?, ?, ?)`,
+      [title, description || null, document_url || null, client_id || null, req.user.id]
     );
     const [rows] = await db.query('SELECT * FROM quotes WHERE id = ?', [result.insertId]);
     res.status(201).json(rows[0]);
@@ -23,11 +23,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const { title, description, document_url } = req.body;
+  const { title, description, document_url, client_id } = req.body;
   try {
     await db.query(
-      `UPDATE quotes SET title=?, description=?, document_url=? WHERE id=?`,
-      [title, description || null, document_url || null, req.params.id]
+      `UPDATE quotes SET title=?, description=?, document_url=?, client_id=? WHERE id=?`,
+      [title, description || null, document_url || null, client_id || null, req.params.id]
     );
     const [rows] = await db.query('SELECT * FROM quotes WHERE id = ?', [req.params.id]);
     res.json(rows[0]);

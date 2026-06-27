@@ -10,7 +10,9 @@ interface CompanySettings {
   address?: string | null;
   phone?: string | null;
   email?: string | null;
+  watermark_url?: string | null;
   terms_and_conditions?: string | null;
+  logo_height?: string | null;
 }
 
 // Update the props interface to include settings
@@ -23,7 +25,8 @@ interface InvoiceTemplateProps {
     pending: number;
     paymentMethod: string;
     issueDate: string;
-    settings: CompanySettings | null; // <-- ADD SETTINGS TO PROPS
+    notes?: string;
+    settings: CompanySettings | null;
 }
 
 const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
@@ -34,18 +37,24 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
     paid,
     pending,
     paymentMethod,
-    issueDate,
+    notes,
     settings
 }) => {
     return (
-        <div style={{ width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', backgroundColor: 'white', color: '#333', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'relative', width: '210mm', minHeight: '297mm', padding: '15mm', fontFamily: 'Arial, sans-serif', backgroundColor: 'white', color: '#333', display: 'flex', flexDirection: 'column', zIndex: 1 }}>
             
+            {/* Watermark Section */}
+            {settings?.watermark_url && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', opacity: 0.1, zIndex: -1, pointerEvents: 'none' }}>
+                    <img src={settings.watermark_url} alt="Watermark" style={{ width: '400px', height: 'auto', objectFit: 'contain' }} />
+                </div>
+            )}
+
             {/* Header Section */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '20px', borderBottom: '1px solid #eee' }}>
                 {/* Check if logo_url exists before rendering the img tag */}
                 {settings?.logo_url ? (
-                    // v-- THIS IS THE FIX: Increased height from 50px to 65px --v
-                    <img src={settings.logo_url} alt="Company Logo" style={{ height: '65px', maxWidth: '220px', objectFit: 'contain' }} />
+                    <img src={settings.logo_url} alt="Company Logo" style={{ height: settings?.logo_height ? `${settings.logo_height}px` : '100px', maxWidth: '300px', objectFit: 'contain' }} />
                 ) : (
                     // Fallback if no logo is set
                     <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#0b2a5c' }}>{settings?.company_name || 'Your Company'}</div>
@@ -118,7 +127,13 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
 
             {/* Notes Section */}
             <div style={{ marginTop: '30px', fontSize: '12px' }}>
-                <p style={{ margin: '0 0 10px 0' }}><strong>Note:</strong> {settings?.terms_and_conditions || 'Default terms and conditions apply.'}</p>
+                {notes && (
+                    <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9fafb', borderLeft: '3px solid #0b2a5c' }}>
+                        <p style={{ margin: 0, fontWeight: 'bold', color: '#0b2a5c' }}>Extra Note:</p>
+                        <p style={{ margin: '5px 0 0 0', whiteSpace: 'pre-line' }}>{notes}</p>
+                    </div>
+                )}
+                <p style={{ margin: '0 0 10px 0' }}><strong>Terms & Conditions:</strong> {settings?.terms_and_conditions || 'Default terms and conditions apply.'}</p>
                 <p><strong>Thanks for Your Business With Us.</strong></p>
             </div>
             

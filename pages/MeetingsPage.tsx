@@ -15,7 +15,8 @@ import { User, Meeting } from '../types';
 const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
   const { currentProfile } = usePermissions();
   const [meetings, setMeetings] = useState<any[]>([]);
-  const [staffList, setStaffList] = useState<User[]>([]); // Ippo full user object ah save panrom
+  const [staffList, setStaffList] = useState<User[]>([]);
+  const [clientList, setClientList] = useState<User[]>([]);
   
   const [isModalOpen, setModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -32,18 +33,35 @@ const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
     try {
       const profiles = await api.get('/api/users');
       setStaffList(profiles.filter((u: any) => u.role === 'Admin' || u.role === 'Staff') as User[]);
+      setClientList(profiles.filter((u: any) => u.role === 'Client') as User[]);
 
       const data = await api.get('/api/meetings');
       
       const formattedMeetings = (data || []).map((meet: any) => {
-        const assigned_to = typeof meet.assigned_to === 'string' ? JSON.parse(meet.assigned_to) : (meet.assigned_to || []);
+        let assigned_to: string[] = [];
+        if (Array.isArray(meet.assigned_to)) {
+            assigned_to = meet.assigned_to;
+        } else if (typeof meet.assigned_to === 'string') {
+            try {
+                assigned_to = JSON.parse(meet.assigned_to);
+                if (!Array.isArray(assigned_to)) assigned_to = [meet.assigned_to];
+            } catch (e) {
+                assigned_to = [meet.assigned_to];
+            }
+        }
+
         return {
-          id: meet.id.toString(),
-          title: meet.title,
-          start: new Date(meet.start_time),
-          end: new Date(meet.end_time),
+          id: meet.id?.toString() || Math.random().toString(),
+          title: meet.title || 'Untitled',
+          start: meet.start_time ? new Date(meet.start_time) : new Date(),
+          end: meet.end_time ? new Date(meet.end_time) : new Date(),
           extendedProps: { ...meet, assigned_to }
         };
+      }).filter((meet: any) => {
+          if (currentProfile?.role === 'Client') {
+              return meet.extendedProps.assigned_to.includes(currentProfile.id);
+          }
+          return true;
       });
       setMeetings(formattedMeetings);
     } catch (err) {
@@ -181,7 +199,17 @@ const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
                             checked={assignedTo.includes(staff.id)}
                             onChange={() => handleAssigneeChange(staff.id)}
                         />
-                        <label htmlFor={`staff-${staff.id}`} className="ml-2">{staff.username}</label>
+                        <label htmlFor={`staff-${staff.id}`} className="ml-2">{staff.username} (Staff)</label>
+                    </div>
+                ))}
+                {clientList.map(client => (
+                    <div key={client.id} className="flex items-center p-1">
+                        <input type="checkbox" id={`client-${client.id}`} 
+                            value={client.id}
+                            checked={assignedTo.includes(client.id)}
+                            onChange={() => handleAssigneeChange(client.id)}
+                        />
+                        <label htmlFor={`client-${client.id}`} className="ml-2">{client.username} (Client)</label>
                     </div>
                 ))}
             </div>

@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import { api } from '../apiClient';
 import { usePermissions } from '../components/auth/PermissionsContext';
 import { Invoice, User, LineItem } from '../types';
-import { PlusIcon, EyeIcon, PencilIcon, TrashIcon, DocumentDuplicateIcon } from '../components/icons/Icons';
+import { PlusIcon, DownloadIcon, PencilIcon, TrashIcon, DocumentDuplicateIcon } from '../components/icons/Icons';
 import InvoiceModal from '../components/invoices/InvoiceModal';
 import InvoiceTemplate from '../components/invoices/InvoiceTemplate';
 
@@ -23,10 +23,12 @@ export interface InvoiceWithRelations extends Invoice {
     profiles: Pick<User, 'username' | 'address' | 'mobile'> | null;
     invoice_items: LineItem[];
     client_name_override?: string | null;
+    client_address?: string | null;
+    client_mobile?: string | null;
 }
 
 const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
-    const { hasPermission } = usePermissions();
+    const { hasPermission, currentProfile } = usePermissions();
     const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setModalOpen] = useState(false);
@@ -46,18 +48,25 @@ const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
                 api.get('/api/users')
             ]);
             const profileMap = new Map<string, User>((profilesData || []).map((p: any) => [p.username.toLowerCase(), p]));
-            const mapped = invoicesData.map((inv: any) => {
-                const clientName = inv.client_name_override || '';
-                const profile = profileMap.get(clientName.toLowerCase()) || null;
-                return {
-                    ...inv,
-                    profiles: profile ? {
-                        username: profile.username,
-                        address: profile.address || '',
-                        mobile: profile.mobile || ''
-                    } : null
-                };
-            });
+            const mapped = invoicesData
+                .filter((inv: any) => {
+                    if (currentProfile?.role === 'Client') {
+                        return inv.client_name_override && inv.client_name_override.toLowerCase() === currentProfile.username.toLowerCase();
+                    }
+                    return true;
+                })
+                .map((inv: any) => {
+                    const clientName = inv.client_name_override || '';
+                    const profile = profileMap.get(clientName.toLowerCase()) || null;
+                    return {
+                        ...inv,
+                        profiles: profile ? {
+                            username: profile.username,
+                            address: profile.address || '',
+                            mobile: profile.mobile || ''
+                        } : null
+                    };
+                });
             setInvoices(mapped);
         } catch (err) {
             console.error("Error fetching invoices:", err);
@@ -78,9 +87,9 @@ const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
         document.body.appendChild(pdfContainer);
 
         const clientForTemplate = { 
-            username: invoice.profiles?.username || invoice.client_name_override || 'N/A', 
-            address: invoice.profiles?.address || '',
-            mobile: invoice.profiles?.mobile || '',
+            username: invoice.client_name_override || invoice.profiles?.username || 'N/A', 
+            address: invoice.client_address || invoice.profiles?.address || '',
+            mobile: invoice.client_mobile || invoice.profiles?.mobile || '',
         };
 
         const invoiceProps = {
@@ -92,6 +101,7 @@ const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
             pending: invoice.total_amount - invoice.paid_amount,
             paymentMethod: invoice.payment_method || 'N/A',
             issueDate: invoice.issue_date,
+            notes: invoice.notes || '',
         };
         
         const tempDiv = document.createElement('div');
@@ -161,45 +171,47 @@ const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
             </div>
 
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {loading ? (
-                            <tr><td colSpan={6} className="text-center py-10 text-gray-500">Loading invoices...</td></tr>
-                        ) : invoices.length === 0 ? (
-                            <tr><td colSpan={6} className="text-center py-10 text-gray-500">No invoices found. Click "Create New Invoice" to get started.</td></tr>
-                        ) : (
-                            invoices.map(inv => (
-                                <tr key={inv.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{inv.invoice_number}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{inv.profiles?.username || inv.client_name_override}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(inv.issue_date).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{inv.total_amount.toLocaleString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[inv.status]}`}>
-                                            {inv.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                                        <button onClick={() => handleDownloadInvoice(inv)} className="p-1 text-gray-400 hover:text-primary" title="View/Download PDF"><EyeIcon className="h-5 w-5"/></button>
-                                        {canEdit && <button onClick={() => handleEdit(inv)} className="p-1 text-gray-400 hover:text-primary" title="Edit Invoice"><PencilIcon className="h-5 w-5"/></button>}
-                                        {canEdit && <button onClick={() => handleDuplicate(inv)} className="p-1 text-gray-400 hover:text-primary" title="Duplicate Invoice"><DocumentDuplicateIcon className="h-5 w-5"/></button>}
-                                        {canDelete && <button onClick={() => handleDeleteInvoice(inv.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Invoice"><TrashIcon className="h-5 w-5"/></button>}
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {loading ? (
+                                <tr><td colSpan={6} className="text-center py-10 text-gray-500">Loading invoices...</td></tr>
+                            ) : invoices.length === 0 ? (
+                                <tr><td colSpan={6} className="text-center py-10 text-gray-500">No invoices found. Click "Create New Invoice" to get started.</td></tr>
+                            ) : (
+                                invoices.map(inv => (
+                                    <tr key={inv.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{inv.invoice_number}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{inv.profiles?.username || inv.client_name_override}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(inv.issue_date).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{inv.total_amount.toLocaleString()}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[inv.status]}`}>
+                                                {inv.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                            <button onClick={() => handleDownloadInvoice(inv)} className="p-1 text-gray-400 hover:text-primary" title="Download PDF"><DownloadIcon className="h-5 w-5"/></button>
+                                            {canEdit && <button onClick={() => handleEdit(inv)} className="p-1 text-gray-400 hover:text-primary" title="Edit Invoice"><PencilIcon className="h-5 w-5"/></button>}
+                                            {canEdit && <button onClick={() => handleDuplicate(inv)} className="p-1 text-gray-400 hover:text-primary" title="Duplicate Invoice"><DocumentDuplicateIcon className="h-5 w-5"/></button>}
+                                            {canDelete && <button onClick={() => handleDeleteInvoice(inv.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Invoice"><TrashIcon className="h-5 w-5"/></button>}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <InvoiceModal 

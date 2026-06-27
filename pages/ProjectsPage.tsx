@@ -134,6 +134,9 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
     // v-- PUDHU FILTER LOGIC --v
     const filteredProjects = useMemo(() => {
         return projects.filter(p => {
+            if (currentProfile?.role === 'Client') {
+                return p.client_name === currentProfile.username;
+            }
             const statusMatch = statusFilter === 'All' || p.status === statusFilter;
             const assignedMatch = !assignedFilter || (currentProfile && p.assigned_to?.includes(currentProfile.id));
             return statusMatch && assignedMatch;

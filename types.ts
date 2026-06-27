@@ -47,8 +47,10 @@ export interface Project {
    end_date: string | null;
    status: 'Started' | 'In Progress' | 'On Hold' | 'Cancelled' | 'Completed';
    tags: string[] | null;
+   description?: string | null;
    created_by: string;
    assigned_to: string[] | null;
+   assigned_percentages?: Record<string, number> | null;
    assigned_users?: User[];
  }
 
@@ -99,6 +101,7 @@ export interface Quote {
   description: string | null;
   document_url: string | null;
   created_by: string;
+  client_id?: string | null;
  }
 
 // Added missing type definitions
@@ -158,12 +161,15 @@ export interface User {
   blood_group?: string;
   permissions?: StaffPermissions;
   address?: string;
-  designation?: string; // Added missing designation
+  designation?: string;
+  total_paid?: number;
+  total_pending?: number;
+  services?: string[];
  }
 
 
 
-export type PageId = 'dashboard' | 'projects' | 'tasks' | 'file-manager' | 'calendar' | 'accounting' | 'invoices' | 'quotes' | 'leads' | 'products' | 'attendance' | 'user-management' | 'leave-management' | 'reports' | 'team-chat' | 'support-ticket' | 'settings' | 'backup-database' | 'mailbox' | 'my-attendance' | 'staff-attendance-detail';
+export type PageId = 'dashboard' | 'projects' | 'tasks' | 'file-manager' | 'calendar' | 'meetings' | 'accounting' | 'invoices' | 'quotes' | 'leads' | 'products' | 'attendance' | 'user-management' | 'leave-management' | 'reports' | 'client-reports' | 'team-chat' | 'support-ticket' | 'settings' | 'backup-database' | 'mailbox' | 'mailbox-inbox' | 'mail-templates' | 'my-attendance' | 'staff-attendance-detail' | 'web-dashboard' | 'app-dashboard' | 'marketing-dashboard' | 'seo-dashboard' | 'software-dashboard';
 
 export interface LineItem {
     id?: number;
@@ -238,4 +244,17 @@ export interface Meeting {
   end_time: string;
   google_meet_link?: string;
   assigned_to?: string[]; // array of profile UUIDs
+}
+
+// In src/types.ts
+export interface ClientReport {
+  id: string;
+  created_at: string;
+  client_id: string; // profile UUID
+  title: string;
+  category: 'SEO' | 'Digital Marketing' | 'Website' | 'Other';
+  file_url: string;
+  file_name: string;
+  notes?: string;
+  created_by: string;
 }

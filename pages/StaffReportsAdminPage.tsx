@@ -12,6 +12,7 @@ const StaffReportsAdminPage: React.FC<{ title: string }> = ({ title }) => {
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     const [reports, setReports] = useState<DailyReport[]>([]);
+    const [performance, setPerformance] = useState<any>(null);
     const [loadingReports, setLoadingReports] = useState(false);
 
     // Admin ah illana, access illa
@@ -44,6 +45,9 @@ const StaffReportsAdminPage: React.FC<{ title: string }> = ({ title }) => {
                 `/api/reports?profile_id=${selectedStaffId}&month=${selectedMonth}`
             );
             setReports(data || []);
+
+            const perfData = await api.get(`/api/reports/performance?profile_id=${selectedStaffId}`);
+            setPerformance(perfData);
         } catch (err) {
             alert((err as Error).message);
         } finally {
@@ -68,6 +72,27 @@ const StaffReportsAdminPage: React.FC<{ title: string }> = ({ title }) => {
                     </button>
                 </div>
             </div>
+
+            {performance && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500">
+                        <div className="text-sm text-gray-500 font-medium">Projects Completed</div>
+                        <div className="text-2xl font-bold text-gray-800">{performance.projects_completed}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500">
+                        <div className="text-sm text-gray-500 font-medium">Leads Taken</div>
+                        <div className="text-2xl font-bold text-gray-800">{performance.leads_taken}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-purple-500">
+                        <div className="text-sm text-gray-500 font-medium">Total Paid Amount</div>
+                        <div className="text-2xl font-bold text-gray-800">₹{performance.total_paid}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-red-500">
+                        <div className="text-sm text-gray-500 font-medium">Pending Amount</div>
+                        <div className="text-2xl font-bold text-gray-800">₹{performance.total_pending}</div>
+                    </div>
+                </div>
+            )}
 
             {loadingReports ? (
                 <div className="text-center p-8">Loading reports...</div>

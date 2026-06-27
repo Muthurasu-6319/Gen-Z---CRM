@@ -11,6 +11,14 @@ interface DailyLog {
     entries: (AttendanceRecord & { attendance_breaks: AttendanceBreak[] })[];
 }
 
+interface LeaveRequest {
+    id: string;
+    start_date: string;
+    end_date: string;
+    reason: string;
+    status: string;
+}
+
 interface StaffDetailPageProps {
     profileId: string;
     setActivePage: (page: string) => void;
@@ -27,6 +35,7 @@ const calculateDuration = (start: string, end: string | null) => {
 
 const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, setActivePage }) => {
     const [logs, setLogs] = useState<DailyLog[]>([]);
+    const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
     const [staffName, setStaffName] = useState('');
     const [loading, setLoading] = useState(true);
     const { hasPermission } = usePermissions();
@@ -36,9 +45,10 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
         if (!profileId) return;
         setLoading(true);
         try {
-            const [profiles, attendance] = await Promise.all([
+            const [profiles, attendance, allLeaves] = await Promise.all([
                 api.get('/api/users'),
-                api.get('/api/attendance')
+                api.get('/api/attendance'),
+                api.get('/api/leave').catch(() => [])
             ]);
             const profile = profiles.find((u: any) => u.id === profileId);
             if (profile) setStaffName(profile.username);
@@ -53,6 +63,9 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
 
             const dailyLogs: DailyLog[] = Object.keys(groupedByDate).map(date => ({ date, entries: groupedByDate[date] }));
             setLogs(dailyLogs);
+            
+            const userLeaves = allLeaves.filter((l: any) => l.profile_id === profileId);
+            setLeaves(userLeaves);
         } catch (error) {
              console.error("Error fetching staff summary:", error);
         }
@@ -110,6 +123,7 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
                                                     <li key={br.id}>
                                                         {new Date(br.break_start_time).toLocaleTimeString()} - {br.break_end_time ? new Date(br.break_end_time).toLocaleTimeString() : 'Ongoing'}
                                                         <span className="ml-2">({calculateDuration(br.break_start_time, br.break_end_time)})</span>
+                                                        {br.reason && <span className="ml-2 italic text-gray-500">- Reason: {br.reason}</span>}
                                                     </li>
                                                 ))}
                                             </ul>
@@ -119,6 +133,36 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
                             ))}
                         </div>
                     ))
+                )}
+            </div>
+
+            <h2 className="text-2xl font-bold text-text-primary mt-10 mb-4">Leave History</h2>
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                {leaves.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No leave requests found for this staff member.</p>
+                ) : (
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {leaves.map(leave => (
+                                <tr key={leave.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 text-sm text-gray-900">{new Date(leave.start_date).toDateString()} - {new Date(leave.end_date).toDateString()}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">{leave.reason || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' : leave.status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                            {leave.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 )}
             </div>
         </div>

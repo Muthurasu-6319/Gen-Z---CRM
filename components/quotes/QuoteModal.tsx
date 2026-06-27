@@ -18,16 +18,30 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, onSave, quoteT
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [documentUrl, setDocumentUrl] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientList, setClientList] = useState<any[]>([]);
+
+  useEffect(() => {
+      const fetchClients = async () => {
+          try {
+              const data = await require('../../apiClient').api.get('/api/users');
+              setClientList(data.filter((u: any) => u.role === 'Client'));
+          } catch (e) {}
+      };
+      fetchClients();
+  }, []);
 
   useEffect(() => {
     if (quoteToEdit && isOpen) {
       setTitle(quoteToEdit.title);
       setDescription(quoteToEdit.description || '');
       setDocumentUrl(quoteToEdit.document_url || '');
+      setClientId(quoteToEdit.client_id || '');
     } else {
       setTitle('');
       setDescription('');
       setDocumentUrl('');
+      setClientId('');
     }
   }, [quoteToEdit, isOpen]);
 
@@ -41,6 +55,7 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, onSave, quoteT
       title,
       description,
       document_url: documentUrl,
+      client_id: clientId || null,
     };
     onSave(quoteData);
   };
@@ -48,6 +63,13 @@ const QuoteModal: React.FC<QuoteModalProps> = ({ isOpen, onClose, onSave, quoteT
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={quoteToEdit ? 'Edit Quote' : 'Create New Quote'}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+            <label className="block text-sm font-medium text-gray-700">Assign to Client (Optional)</label>
+            <select value={clientId} onChange={e => setClientId(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary">
+                <option value="">-- No Client --</option>
+                {clientList.map(c => <option key={c.id} value={c.id}>{c.username}</option>)}
+            </select>
+        </div>
         <InputField label="Quote Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
         
         <TextareaField 

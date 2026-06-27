@@ -36,6 +36,9 @@ router.post('/', auth, async (req, res) => {
        WHERE t.id = ?`,
       [result.insertId]
     );
+    if (!rows || rows.length === 0) {
+      return res.status(500).json({ error: 'Failed to retrieve transaction. ID: ' + result.insertId });
+    }
     res.status(201).json({
       ...rows[0],
       transaction_date: rows[0].date,
@@ -59,6 +62,9 @@ router.put('/:id', auth, async (req, res) => {
        WHERE t.id = ?`,
       [req.params.id]
     );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Transaction not found after update. ID: ' + req.params.id });
+    }
     res.json({
       ...rows[0],
       transaction_date: rows[0].date,
