@@ -5,9 +5,7 @@ import { api } from '../../apiClient';
 
 // --- MOCK/HELPER COMPONENTS AND TYPES (Adjust these imports as needed) ---
 
-// v-- MUKKIYAMANA MAATRAM: Namma master list ah inga import panrom --v
-import { sidebarItems } from '../layout/Sidebar';
-// ^-- IMPORT PANIYACHU --^
+import { STAFF_PERMISSION_PAGES } from '../../config/pages';
 
 // This structure MUST match your database types (profiles table structure)
 interface StaffPermissions { /* ... your permission structure ... */ }
@@ -63,8 +61,7 @@ interface CreateUserModalProps {
 }
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const actions = ['view', 'create', 'edit', 'delete'] as const;
-type Action = typeof actions[number];
+const availableServices = ['Web Development', 'App Development', 'Digital Marketing', 'SEO', 'Custom Software'];
 
 const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCreateUser }) => {
     const [username, setUsername] = useState('');
@@ -78,29 +75,26 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
     const [bankDetails, setBankDetails] = useState('');
     const [bloodGroup, setBloodGroup] = useState(bloodGroups[0]);
     const [role, setRole] = useState<'Admin' | 'Staff' | 'Client'>('Client');
-    const [permissions, setPermissions] = useState<StaffPermissions>({ view: false, create: false, edit: false, delete: false });
+    const [roles, setRoles] = useState<{id: string, name: string}[]>([]);
+    const [selectedServices, setSelectedServices] = useState<string[]>([]);
+
+    React.useEffect(() => {
+        api.get('/api/roles').then((data: any) => setRoles(data || [])).catch(() => {});
+    }, []);
+
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const resetForm = useCallback(() => {
         setUsername(''); setEmail(''); setPassword(''); setConfirmPassword(''); setMobile('');
         setDesignation(''); setAddress(''); setGpay(''); setBankDetails(''); setBloodGroup(bloodGroups[0]);
-        setRole('Client'); setPermissions({}); setError(null);
+        setRole('Client'); setSelectedServices([]); setError(null);
     }, []);
 
     const handleClose = () => {
         resetForm();
         onClose();
     };
-    
-    const handlePermissionChange = useCallback((pageId: PageId, action: Action, checked: boolean) => {
-        setPermissions(prev => {
-            const newPerms = { ...prev };
-            if (!newPerms[pageId]) newPerms[pageId] = {};
-            newPerms[pageId][action] = checked;
-            return newPerms;
-        });
-    }, []);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
@@ -115,17 +109,16 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
         
         setIsSubmitting(true);
 
-        const newUser: Omit<User, 'id' | 'user_id'> = {
+        const newUser: any = {
             username, email, password, mobile, designation, address,
-            gpay, bankDetails, bloodGroup, role,
-            ...(role === 'Staff' && { permissions }),
+            gpay, bankDetails, bloodGroup, role, services: selectedServices
         };
         
         onCreateUser(newUser);
 
         setIsSubmitting(false);
 
-    }, [username, email, password, confirmPassword, mobile, designation, address, gpay, bankDetails, bloodGroup, role, permissions, onCreateUser]);
+    }, [username, email, password, confirmPassword, mobile, designation, address, gpay, bankDetails, bloodGroup, role, selectedServices, onCreateUser]);
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Create New User">
@@ -156,27 +149,32 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
                 <hr className="my-4"/>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <SelectField label="Blood Group" id="bloodGroup" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} options={bloodGroups} />
-                    <SelectField label="Role" id="role" value={role} onChange={e => setRole(e.target.value as any)} options={['Admin', 'Staff', 'Client']} />
+                    <SelectField label="Role" id="role" value={role} onChange={e => setRole(e.target.value as any)} options={['Admin', 'Client', ...roles.map(r => r.name)]} />
                 </div>
 
-                {role === 'Staff' && (
-                    <div className="space-y-4 pt-2 border p-4 rounded-lg bg-gray-50">
-                        <h3 className="text-lg font-medium text-gray-900 border-b pb-2">Staff Permissions</h3>
-                        {/* Ippo namma correct aana list ah use panrom */}
-                        {sidebarItems.map(item => (
-                            <div key={item.id} className="p-3 border rounded-md bg-white shadow-sm">
-                                <p className="font-semibold text-blue-600">{item.label}</p>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
-                                    {actions.map(action => (
-                                        <CheckboxField
-                                            key={action} id={`${item.id}-${action}`} label={action.charAt(0).toUpperCase() + action.slice(1)}
-                                            checked={permissions[item.id as PageId]?.[action] || false}
-                                            onChange={e => handlePermissionChange(item.id as PageId, action, e.target.checked)}
-                                        />
-                                    ))}
+                {role === 'Client' && (
+                    <div className="bg-gray-50 p-4 rounded-md border border-gray-200 mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Services</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {availableServices.map(service => (
+                                <div key={service} className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id={`service-${service}`}
+                                        checked={selectedServices.includes(service)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedServices([...selectedServices, service]);
+                                            } else {
+                                                setSelectedServices(selectedServices.filter(s => s !== service));
+                                            }
+                                        }}
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <label htmlFor={`service-${service}`} className="ml-2 block text-sm text-gray-900">{service}</label>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
 

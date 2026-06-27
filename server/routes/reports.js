@@ -3,6 +3,39 @@ const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
+router.get('/performance', auth, async (req, res) => {
+  const targetId = req.query.profile_id || req.user.id;
+  
+  // Security check: Only admin can view others' performance
+  if (req.query.profile_id && req.user.role !== 'Admin' && req.query.profile_id !== String(req.user.id)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  try {
+    const { getDoc, getCollection } = require('../firebase-admin');
+    const profile = await getDoc('profiles', targetId);
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
+    // Projects completed
+    const allProjects = await getCollection('projects');
+    const completedProjects = allProjects.filter(p => 
+      p.status === 'Completed' && p.assigned_to && p.assigned_to.includes(targetId)
+    );
+
+    // Leads taken
+    const [leads] = await db.query('SELECT * FROM leads WHERE created_by = ?', [targetId]);
+
+    res.json({
+      total_paid: profile.total_paid || 0,
+      total_pending: profile.total_pending || 0,
+      projects_completed: completedProjects.length,
+      leads_taken: leads.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/', auth, async (req, res) => {
   const { profile_id, month } = req.query;
   try {

@@ -23,7 +23,11 @@ const QuotesPage: React.FC<{ title: string }> = ({ title }) => {
     setLoading(true);
     try {
       const data = await api.get('/api/quotes');
-      setQuotes(data || []);
+      let filtered = data || [];
+      if (currentProfile?.role === 'Client') {
+          filtered = filtered.filter((q: Quote) => q.client_id === currentProfile.id);
+      }
+      setQuotes(filtered);
     } catch (err: any) {
       console.error("Error fetching quotes:", err.message || err);
     }
@@ -69,25 +73,27 @@ const QuotesPage: React.FC<{ title: string }> = ({ title }) => {
         {canCreate && (<button onClick={() => { setQuoteToEdit(null); setModalOpen(true); }} className="inline-flex items-center bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-dark"><PlusIcon className="h-5 w-5 mr-2" /> Create Quote</button>)}
       </div>
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created On</th><th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th></tr></thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loading ? (<tr><td colSpan={4} className="p-8 text-center text-gray-500">Loading...</td></tr>) : 
-             quotes.length === 0 ? (<tr><td colSpan={4} className="p-8 text-center text-gray-500">No quotes found.</td></tr>) : 
-             (quotes.map((quote) => (
-                <tr key={quote.id}>
-                  <td className="px-6 py-4 font-medium">{quote.title}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 max-w-sm truncate" title={quote.description || ''}>{quote.description}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{new Date(quote.created_at).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    {quote.document_url && (<a href={quote.document_url} target="_blank" rel="noopener noreferrer" className="p-1 inline-block text-gray-400 hover:text-primary" title="View Document"><LinkIcon className="h-5 w-5"/></a>)}
-                    {canEdit && <button onClick={() => { setQuoteToEdit(quote); setModalOpen(true); }} className="p-1 text-gray-400 hover:text-primary" title="Edit Quote"><PencilIcon className="h-5 w-5"/></button>}
-                    {canDelete && <button onClick={() => handleDeleteQuote(quote.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Quote"><TrashIcon className="h-5 w-5"/></button>}
-                  </td>
-                </tr>
-              )))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created On</th><th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th></tr></thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {loading ? (<tr><td colSpan={4} className="p-8 text-center text-gray-500">Loading...</td></tr>) : 
+               quotes.length === 0 ? (<tr><td colSpan={4} className="p-8 text-center text-gray-500">No quotes found.</td></tr>) : 
+               (quotes.map((quote) => (
+                  <tr key={quote.id}>
+                    <td className="px-6 py-4 font-medium">{quote.title}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 max-w-sm truncate" title={quote.description || ''}>{quote.description}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{new Date(quote.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      {quote.document_url && (<a href={quote.document_url} target="_blank" rel="noopener noreferrer" className="p-1 inline-block text-gray-400 hover:text-primary" title="View Document"><LinkIcon className="h-5 w-5"/></a>)}
+                      {canEdit && <button onClick={() => { setQuoteToEdit(quote); setModalOpen(true); }} className="p-1 text-gray-400 hover:text-primary" title="Edit Quote"><PencilIcon className="h-5 w-5"/></button>}
+                      {canDelete && <button onClick={() => handleDeleteQuote(quote.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Quote"><TrashIcon className="h-5 w-5"/></button>}
+                    </td>
+                  </tr>
+                )))}
+            </tbody>
+          </table>
+        </div>
       </div>
       <QuoteModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleSaveQuote} quoteToEdit={quoteToEdit} isSaving={isSaving} />
     </>

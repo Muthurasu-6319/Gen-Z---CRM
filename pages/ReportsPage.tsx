@@ -14,6 +14,7 @@ interface ReportWithProfile extends DailyReport {
 const ReportsPage: React.FC<{ title: string }> = ({ title }) => {
     const { currentProfile, hasPermission } = usePermissions();
     const [reports, setReports] = useState<ReportWithProfile[]>([]);
+    const [performance, setPerformance] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -37,6 +38,9 @@ const ReportsPage: React.FC<{ title: string }> = ({ title }) => {
                 profiles: r.username ? { username: r.username } : null
             }));
             setReports(mapped);
+
+            const perfData = await api.get('/api/reports/performance');
+            setPerformance(perfData);
         } catch (err) {
             console.error("Error fetching reports:", err);
         }
@@ -116,6 +120,27 @@ const ReportsPage: React.FC<{ title: string }> = ({ title }) => {
                     </button>
                 )}
             </div>
+            
+            {performance && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-blue-500">
+                        <div className="text-sm text-gray-500 font-medium">Projects Completed</div>
+                        <div className="text-2xl font-bold text-gray-800">{performance.projects_completed}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500">
+                        <div className="text-sm text-gray-500 font-medium">Leads Taken</div>
+                        <div className="text-2xl font-bold text-gray-800">{performance.leads_taken}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-purple-500">
+                        <div className="text-sm text-gray-500 font-medium">Total Paid Amount</div>
+                        <div className="text-2xl font-bold text-gray-800">₹{performance.total_paid}</div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow-md border-l-4 border-red-500">
+                        <div className="text-sm text-gray-500 font-medium">Pending Amount</div>
+                        <div className="text-2xl font-bold text-gray-800">₹{performance.total_pending}</div>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white shadow-md rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">

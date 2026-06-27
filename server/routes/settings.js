@@ -3,6 +3,15 @@ const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 
+router.get('/public', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM settings WHERE key_name IN (?, ?, ?)', ['logo_url', 'company_name', 'crm_details']);
+    const result = {};
+    rows.forEach(r => { result[r.key_name] = r.value; });
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM settings');

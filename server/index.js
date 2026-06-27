@@ -10,6 +10,10 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
+const { initCronJobs } = require('./cron');
+
+// Init background jobs
+initCronJobs();
 
 const app = express();
 const server = http.createServer(app);
@@ -36,6 +40,7 @@ app.use('/api/accounting',    require('./routes/accounting'));
 app.use('/api/calendar',      require('./routes/calendar'));
 app.use('/api/attendance',    require('./routes/attendance'));
 app.use('/api/leave',         require('./routes/leave'));
+app.use('/api/client-reports', require('./routes/client-reports'));
 app.use('/api/meetings',      require('./routes/meetings'));
 app.use('/api/reports',       require('./routes/reports'));
 app.use('/api/messages',      require('./routes/messages'));
@@ -43,6 +48,8 @@ app.use('/api/files',         require('./routes/files'));
 app.use('/api/mailbox',       require('./routes/mailbox'));
 app.use('/api/settings',      require('./routes/settings'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/roles',         require('./routes/roles'));
+app.use('/api/tickets',       require('./routes/tickets'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
@@ -82,41 +89,39 @@ io.on('connection', (socket) => {
       }
     })();
 
-    (async () => {
-      try {
-        const [msgs] = await db.query(`
-          SELECT m.*, p.username FROM messages m
-          LEFT JOIN profiles p ON m.profile_id = p.id
-          ORDER BY m.created_at ASC LIMIT 100`
-        );
-        socket.emit('chat_history', msgs);
-      } catch (e) {
-        console.warn('Chat history fetch failed, sending empty array');
-        socket.emit('chat_history', []);
-      }
-    })();
+    // No initial chat_history emission here anymore.
+    // Client will use REST API to fetch history per room.
+
+    socket.on('join_room', (roomId) => {
+      // Leave all other rooms except their own socket ID
+      socket.rooms.forEach(room => {
+          if (room !== socket.id) socket.leave(room);
+      });
+      socket.join(roomId);
+    });
 
     // New message from client
-    socket.on('send_message', async (content) => {
+    socket.on('send_message', async ({ content, room_id }) => {
       if (!content || !content.trim()) return;
+      const roomId = room_id || 'general';
       try {
         const [result] = await db.query(
-          'INSERT INTO messages (profile_id, content) VALUES (?, ?)',
-          [id, content.trim()]
+          'INSERT INTO messages (profile_id, content, room_id) VALUES (?, ?, ?)',
+          [id, content.trim(), roomId]
         );
         const [rows] = await db.query(
           `SELECT m.*, p.username FROM messages m LEFT JOIN profiles p ON m.profile_id = p.id WHERE m.id = ?`,
           [result.insertId]
         );
-        io.emit('new_message', rows[0]);
+        io.to(roomId).emit('new_message', rows[0]);
       } catch (err) {
         socket.emit('error', 'Failed to send message');
       }
     });
 
     // Typing indicator
-    socket.on('typing', () => {
-      socket.broadcast.emit('user_typing', { id, username });
+    socket.on('typing', (roomId) => {
+      if (roomId) socket.to(roomId).emit('user_typing', { id, username: socket.user.username });
     });
 
     socket.on('disconnect', () => {
@@ -131,6 +136,6 @@ const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`\n✅  CRM API Server running on http://localhost:${PORT}`);
   console.log(`   Socket.IO ready for real-time chat`);
-  console.log(`   MySQL: ${process.env.DB_HOST}/${process.env.DB_NAME}\n`);
+  console.log(`   Database: Firebase Firestore (Emulator Wrapper)\n`);
 });
 

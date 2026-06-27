@@ -1,10 +1,9 @@
 // src/pages/ProjectDetailPage.tsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-// useParams and Link ah remove pannitom, because namma ippo props use panrom
-// import { useParams, Link } from 'react-router-dom';
 import { api } from '../apiClient';
 import { Project, User } from '../types';
+import { usePermissions } from '../components/auth/PermissionsContext';
 
 interface ProjectDetail extends Project {
     client_name?: string | null;
@@ -19,7 +18,6 @@ const statusColors: { [key: string]: string } = {
   Completed: 'bg-green-100 text-green-800',
 };
 
-// v-- IPPO PROPS IPDI IRUKKUM --v
 interface ProjectDetailPageProps {
     title: string;
     projectId: string;
@@ -27,19 +25,13 @@ interface ProjectDetailPageProps {
 }
 
 const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId, setActivePage }) => {
-    // useParams ku pathila props use panrom
-    // const { projectId } = useParams<{ projectId: string }>();
+    const { currentProfile } = usePermissions();
     const [project, setProject] = useState<ProjectDetail | null>(null);
     const [loading, setLoading] = useState(true);
 
     const fetchProjectDetails = useCallback(async () => {
         if (!projectId) return;
         setLoading(true);
-
-        // Namma 'assigned_staff' nu oru alias create panni, atha vechi fetch panna try pannom. Athu work aagaathu.
-        // So, namma correct aana 'profiles' table la irunthu join pannanum.
-        // Aana namma last fix panna maathiri, client-side laye join panradhu better.
-        // So ingayum athe logic use panrom.
 
         try {
             const projectData = await api.get(`/api/projects/${projectId}`);
@@ -68,9 +60,11 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
     if (loading) return <div className="p-8 text-center">Loading project details...</div>;
     if (!project) return <div className="p-8 text-center text-red-500">Project not found.</div>;
 
+    const isAdmin = currentProfile?.role === 'Admin';
+    const myPercentage = (currentProfile && project.assigned_percentages) ? project.assigned_percentages[currentProfile.id] : null;
+
     return (
         <div>
-            {/* Link ku pathila button use panrom */}
             <button onClick={() => setActivePage('projects')} className="text-primary hover:underline mb-6 inline-block">&larr; Back to All Projects</button>
             
             <div className="bg-white shadow-md rounded-lg p-6">
@@ -85,6 +79,13 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     Category: <span className="font-medium text-gray-700">{project.category || 'N/A'}</span>
                 </div>
 
+                {project.description && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg text-gray-700">
+                        <h3 className="font-semibold text-gray-600 mb-1">Description</h3>
+                        <p className="whitespace-pre-wrap">{project.description}</p>
+                    </div>
+                )}
+
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-t pt-6">
                     <div>
                         <h3 className="font-semibold text-gray-600">Client</h3>
@@ -96,7 +97,15 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     </div>
                     <div>
                         <h3 className="font-semibold text-gray-600">Total Cost</h3>
-                        <p>{project.total_cost !== undefined && project.total_cost !== null ? `$${project.total_cost}` : 'N/A'}</p>
+                        <p>{project.total_cost !== undefined && project.total_cost !== null ? `₹${project.total_cost}` : 'N/A'}</p>
+                        
+                        {/* Custom Percentage Amount Display */}
+                        {!isAdmin && myPercentage && project.total_cost && (
+                             <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
+                                 <strong>My Allocated Amount:</strong><br/>
+                                 ₹{((project.total_cost * myPercentage) / 100).toFixed(2)} ({myPercentage}%)
+                             </div>
+                        )}
                     </div>
                     <div>
                         <h3 className="font-semibold text-gray-600">Start Date</h3>
@@ -110,9 +119,10 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                         <h3 className="font-semibold text-gray-600">Project Asset</h3>
                         <p>
                           {project.project_asset ? (
-                            project.project_asset.startsWith('http') ? (
-                              <a href={project.project_asset} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                                {project.project_asset}
+                            project.project_asset.startsWith('http') || project.project_asset.startsWith('/') ? (
+                              <a href={project.project_asset} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all inline-flex items-center">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                Open Asset / Folder
                               </a>
                             ) : (
                               project.project_asset
@@ -134,12 +144,26 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
 
                 <div className="mt-6 border-t pt-6">
                     <h3 className="font-semibold text-gray-600 mb-2">Assigned Staff</h3>
-                    <div className="flex items-center space-x-2">
-                        {project.assigned_staff.map(staff => (
-                            <div key={staff.id} title={staff.username} className="h-10 w-10 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                                {staff.username.substring(0, 2).toUpperCase()}
-                            </div>
-                        ))}
+                    <div className="flex flex-col space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {project.assigned_staff.map(staff => {
+                                const staffPct = project.assigned_percentages?.[staff.id];
+                                return (
+                                <div key={staff.id} className="flex items-center p-2 bg-gray-50 border rounded-lg">
+                                    <div title={staff.username} className="h-10 w-10 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                        {staff.username.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="ml-3">
+                                        <div className="text-sm font-medium">{staff.username}</div>
+                                        {isAdmin && staffPct && project.total_cost && (
+                                            <div className="text-xs text-gray-500">
+                                                ₹{((project.total_cost * staffPct) / 100).toFixed(2)} ({staffPct}%)
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )})}
+                        </div>
                     </div>
                 </div>
             </div>

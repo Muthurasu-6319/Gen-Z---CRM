@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { api } from '../../apiClient';
 import { User, StaffPermissions, PageId } from '../../types';
-import { sidebarItems } from '../layout/Sidebar';
+import { STAFF_PERMISSION_PAGES } from '../../config/pages';
 
 const InputField: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, id, ...props }) => ( <div> <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label> <input id={id} {...props} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"/> </div> );
 const SelectField: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; options: string[] }> = ({ label, id, options, ...props }) => ( <div> <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label> <select id={id} {...props} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"> {options.map(opt => <option key={opt} value={opt}>{opt}</option>)} </select> </div> );
@@ -19,8 +19,7 @@ interface EditUserModalProps {
 }
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const actions = ['view', 'create', 'edit', 'delete'] as const;
-type Action = typeof actions[number];
+const availableServices = ['Web Development', 'App Development', 'Digital Marketing', 'SEO', 'Custom Software'];
 
 const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, onUserUpdated }) => {
   // Local state for all form fields
@@ -29,9 +28,16 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
   const [designation, setDesignation] = useState('');
   const [gpay, setGpay] = useState('');
   const [bankDetails, setBankDetails] = useState('');
+  const [totalPaid, setTotalPaid] = useState<number>(0);
+  const [totalPending, setTotalPending] = useState<number>(0);
   const [bloodGroup, setBloodGroup] = useState(bloodGroups[0]);
-  const [role, setRole] = useState<'Admin' | 'Staff' | 'Client'>('Client');
-  const [permissions, setPermissions] = useState<StaffPermissions>({ view: false, create: false, edit: false, delete: false });
+  const [role, setRole] = useState<'Admin' | 'Staff' | 'Client' | string>('Client');
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  
+  const [roles, setRoles] = useState<{id: string, name: string}[]>([]);
+  useEffect(() => {
+    api.get('/api/roles').then((data: any) => setRoles(data || [])).catch(() => {});
+  }, []);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -42,20 +48,14 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
       setGpay(user.gpay || '');
       // Ensure we're reading from the correct snake_case property
       setBankDetails(user.bank_details || '');
+      setTotalPaid(user.total_paid || 0);
+      setTotalPending(user.total_pending || 0);
       setBloodGroup(user.blood_group || bloodGroups[0]);
       setRole(user.role || 'Client');
-      setPermissions(JSON.parse(JSON.stringify(user.permissions || {})));
+      setSelectedServices(user.services || []);
     }
   }, [user, isOpen]);
   
-  const handlePermissionChange = (pageId: PageId, action: Action, checked: boolean) => {
-    setPermissions(prev => {
-        const newPerms = { ...prev };
-        if (!newPerms[pageId]) newPerms[pageId] = {};
-        newPerms[pageId]![action] = checked;
-        return newPerms;
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +71,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
       bankDetails: bankDetails,
       bloodGroup: bloodGroup,
       role: role,
-      permissions: role === 'Staff' ? permissions : null,
+      total_paid: totalPaid,
+      total_pending: totalPending,
+      services: selectedServices
     };
 
     try {
@@ -105,13 +107,37 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
         <TextareaField label="Bank Details" id="bankDetails" value={bankDetails} onChange={e => setBankDetails(e.target.value)} rows={3} />
         <hr/>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <SelectField label="Blood Group" id="bloodGroup" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} options={bloodGroups} />
-          <SelectField label="Role" id="role" value={role} onChange={e => setRole(e.target.value as any)} options={['Admin', 'Staff', 'Client']} />
+          <InputField label="Total Paid (₹)" id="totalPaid" type="number" value={totalPaid} onChange={e => setTotalPaid(Number(e.target.value))} />
+          <InputField label="Total Pending (₹)" id="totalPending" type="number" value={totalPending} onChange={e => setTotalPending(Number(e.target.value))} />
         </div>
-        {role === 'Staff' && (
-          <div className="space-y-4 pt-2">
-            <h3 className="text-lg font-medium text-gray-900">Staff Permissions</h3>
-            {sidebarItems.map(item => (<div key={item.id} className="p-3 border rounded-md"><p className="font-semibold">{item.label}</p><div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">{actions.map(action => (<CheckboxField key={action} id={`${item.id}-${action}-edit`} label={action.charAt(0).toUpperCase() + action.slice(1)} checked={permissions[item.id as PageId]?.[action] || false} onChange={e => handlePermissionChange(item.id as PageId, action, e.target.checked)}/>))}</div></div>))}
+        <hr/>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SelectField label="Blood Group" id="bloodGroup" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} options={bloodGroups} />
+          <SelectField label="Role" id="role" value={role} onChange={e => setRole(e.target.value as any)} options={['Admin', 'Client', ...roles.map(r => r.name)]} />
+        </div>
+        {role === 'Client' && (
+          <div className="bg-gray-50 p-4 rounded-md border border-gray-200 mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Services</label>
+              <div className="grid grid-cols-2 gap-2">
+                  {availableServices.map(service => (
+                      <div key={service} className="flex items-center">
+                          <input
+                              type="checkbox"
+                              id={`edit-service-${service}`}
+                              checked={selectedServices.includes(service)}
+                              onChange={(e) => {
+                                  if (e.target.checked) {
+                                      setSelectedServices([...selectedServices, service]);
+                                  } else {
+                                      setSelectedServices(selectedServices.filter(s => s !== service));
+                                  }
+                              }}
+                              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                          />
+                          <label htmlFor={`edit-service-${service}`} className="ml-2 block text-sm text-gray-900">{service}</label>
+                      </div>
+                  ))}
+              </div>
           </div>
         )}
         <div className="flex justify-end space-x-3 pt-4">

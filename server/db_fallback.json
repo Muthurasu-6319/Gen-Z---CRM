@@ -23,6 +23,24 @@
       "password": "$2b$10$IcH820CAncuUhXimAuWfEuVeroiwxEYrcKHub3TuXReO45Sfx.Fye",
       "role": "Staff",
       "designation": "Designer"
+    },
+    {
+      "id": 1,
+      "username": "Muthurasu M",
+      "email": "muthurasu6319@gmail.com",
+      "password": "$2a$10$6USwbCXr849NBiNvLsIrL.W5JmYzbWSa1d4.gXEHtj4mh46PiXMuq",
+      "role": "Staff",
+      "designation": "",
+      "mobile": "08124996319",
+      "gpay": "",
+      "bank_details": "",
+      "blood_group": "A+",
+      "permissions": {
+        "mailbox": {
+          "view": true
+        }
+      },
+      "created_at": "2026-06-26T09:25:59.848Z"
     }
   ],
   "tasks": [],
@@ -34,8 +52,31 @@
   "invoice_line_items": [],
   "transactions": [],
   "calendar_events": [],
-  "attendance": [],
-  "attendance_breaks": [],
+  "attendance": [
+    {
+      "profile_id": 0,
+      "date": "2026-06-26",
+      "check_in_time": "NOW(",
+      "id": 1,
+      "created_at": "2026-06-26T08:51:23.531Z",
+      "status": "On Break"
+    }
+  ],
+  "attendance_breaks": [
+    {
+      "entry_id": "1",
+      "break_start_time": "NOW(",
+      "id": 1,
+      "created_at": "2026-06-26T08:51:25.484Z",
+      "break_end_time": "2026-06-26T08:51:37.069Z"
+    },
+    {
+      "entry_id": "1",
+      "break_start_time": "NOW(",
+      "id": 2,
+      "created_at": "2026-06-26T08:51:37.858Z"
+    }
+  ],
   "leaves": [],
   "meetings": [],
   "daily_reports": [],
@@ -76,7 +117,69 @@
       "created_at": "2026-06-23T08:26:43.147Z"
     }
   ],
-  "mails": [],
+  "mails": [
+    {
+      "sender_id": 0,
+      "recipient_id": 1,
+      "subject": "Test Email for Verification",
+      "body": "\n      <div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#f9fafb;border-radius:12px;\">\n        <div style=\"background:#fff;padding:28px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06);\">\n          Hi Team,<br><br>This is a dummy email sent to verify that the email system is working correctly. No action is required.<br><br>Thank you.<br><br>Warm Regards,<br>GENZ Team\n          <hr style=\"border:none;border-top:1px solid #e5e7eb;margin:24px 0;\" />\n          <p style=\"color:#374151;font-size:14px;margin:0;\">Warm Regards,</p>\n          <p style=\"color:#4f46e5;font-weight:700;font-size:15px;margin:4px 0 0 0;\">GENZ Team</p>\n        </div>\n      </div>",
+      "folder": "sent",
+      "id": 1,
+      "created_at": "2026-06-26T09:26:43.670Z"
+    }
+  ],
   "notifications": [],
-  "settings": []
+  "settings": [
+    {
+      "key_name": "company_name",
+      "value": "Gen Z",
+      "id": 1,
+      "created_at": "2026-06-26T10:21:48.770Z"
+    },
+    {
+      "key_name": "logo_url",
+      "value": "https://ik.imagekit.io/muthurasu/GEN%20Z/GEN%20Z%20LOGO%20-%20FINAL%20-%20Transperent.png?updatedAt=1773750638677",
+      "id": 2,
+      "created_at": "2026-06-26T10:21:48.776Z"
+    },
+    {
+      "key_name": "address",
+      "value": "",
+      "id": 3,
+      "created_at": "2026-06-26T10:21:48.779Z"
+    },
+    {
+      "key_name": "phone",
+      "value": "",
+      "id": 4,
+      "created_at": "2026-06-26T10:21:48.781Z"
+    },
+    {
+      "key_name": "email",
+      "value": "",
+      "id": 5,
+      "created_at": "2026-06-26T10:21:48.784Z"
+    },
+    {
+      "key_name": "invoice_prefix",
+      "value": "",
+      "id": 6,
+      "created_at": "2026-06-26T10:21:48.787Z"
+    },
+    {
+      "key_name": "terms_and_conditions",
+      "value": "",
+      "id": 7,
+      "created_at": "2026-06-26T10:21:48.790Z"
+    }
+  ],
+  "email_templates": [
+    {
+      "name": "Test Email for Verification",
+      "subject": "Test Email for Verification",
+      "body": "Hi Team,\n\nThis is a dummy email sent to verify that the email system is working correctly. No action is required.\n\nThank you.\n\nWarm Regards,\nGENZ Team",
+      "id": 1,
+      "created_at": "2026-06-26T09:25:29.952Z"
+    }
+  ]
 }

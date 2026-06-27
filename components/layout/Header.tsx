@@ -49,7 +49,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         const data = await api.post<any>('/api/attendance/checkin', {});
         setStatus('Checked In'); setEntryId(data.id);
       } else if (status === 'Checked In') {
-        const data = await api.post<any>(`/api/attendance/break/start/${entryId}`, {});
+        const reason = window.prompt("Please provide a reason for pausing your shift:");
+        if (!reason) return; // Cancel if no reason provided
+        const data = await api.post<any>(`/api/attendance/break/start/${entryId}`, { reason });
         setStatus('On Break'); setBreakId(data.id);
       } else if (status === 'On Break') {
         await api.post(`/api/attendance/break/end/${breakId}`, {});
