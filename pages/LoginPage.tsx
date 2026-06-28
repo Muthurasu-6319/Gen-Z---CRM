@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { api, storeToken } from '../apiClient';
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('admin@crm.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,11 +53,7 @@ const LoginPage: React.FC = () => {
         </div>
         
         <div className="max-w-lg relative z-10 text-center md:text-left">
-          {logoUrl ? (
-             <img src={logoUrl} alt={companyName} className="h-20 object-contain mb-8 mx-auto md:mx-0 drop-shadow-md" />
-          ) : (
-             <h1 className="text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">{companyName}</h1>
-          )}
+          <h1 className="text-5xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">{companyName}</h1>
           
           <h2 className="text-3xl font-bold mb-6 leading-tight">
             Welcome to <br className="hidden md:block" /> {companyName}
