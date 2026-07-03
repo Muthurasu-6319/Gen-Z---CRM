@@ -98,7 +98,7 @@ async function notifyAssignees(userIds, meeting) {
         </div>
       `;
       await transporter.sendMail({
-        from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: user.email,
         subject: `Meeting Invite: ${meeting.title}`,
         html

@@ -101,7 +101,7 @@ async function notifyAssignees(userIds, event) {
         </div>
       `;
       await transporter.sendMail({
-        from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: user.email,
         subject: `Event Scheduled: ${event.title}`,
         html

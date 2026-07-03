@@ -50,8 +50,10 @@ export interface Project {
    description?: string | null;
    created_by: string;
    assigned_to: string[] | null;
-   assigned_percentages?: Record<string, number> | null;
+   assigned_amounts?: Record<string, number> | null;
    assigned_users?: User[];
+   lead_generator_id?: string | null;
+   lead_generator_incentive?: number | null;
  }
 
 // in src/types.ts
@@ -169,7 +171,7 @@ export interface User {
 
 
 
-export type PageId = 'dashboard' | 'projects' | 'tasks' | 'file-manager' | 'calendar' | 'meetings' | 'accounting' | 'invoices' | 'quotes' | 'leads' | 'products' | 'attendance' | 'user-management' | 'leave-management' | 'reports' | 'client-reports' | 'team-chat' | 'support-ticket' | 'settings' | 'backup-database' | 'mailbox' | 'mailbox-inbox' | 'mail-templates' | 'my-attendance' | 'staff-attendance-detail' | 'web-dashboard' | 'app-dashboard' | 'marketing-dashboard' | 'seo-dashboard' | 'software-dashboard';
+export type PageId = 'dashboard' | 'projects' | 'tasks' | 'file-manager' | 'calendar' | 'meetings' | 'accounting' | 'invoices' | 'quotes' | 'leads' | 'products' | 'attendance' | 'user-management' | 'leave-management' | 'reports' | 'client-reports' | 'team-chat' | 'support-ticket' | 'settings' | 'backup-database' | 'mailbox' | 'mailbox-inbox' | 'mail-templates' | 'my-attendance' | 'user-notes' | 'staff-attendance-detail' | 'web-dashboard' | 'app-dashboard' | 'marketing-dashboard' | 'seo-dashboard' | 'software-dashboard';
 
 export interface LineItem {
     id?: number;
@@ -191,6 +193,8 @@ export interface Lead {
   requirements: string | null;
   mobile_no: string | null;
   notes: string | null;
+  location?: string | null;
+  assigned_to?: string | null;
   created_at: string;
   created_by: string;
 }

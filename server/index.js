@@ -1,6 +1,7 @@
 // server/index.js
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') }); // Fallback for root variables
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dummy-secret';
 process.env.JWT_SECRET = JWT_SECRET;
@@ -48,6 +49,7 @@ app.use('/api/files',         require('./routes/files'));
 app.use('/api/mailbox',       require('./routes/mailbox'));
 app.use('/api/settings',      require('./routes/settings'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/user-notes', require('./routes/userNotes'));
 app.use('/api/roles',         require('./routes/roles'));
 app.use('/api/tickets',       require('./routes/tickets'));
 

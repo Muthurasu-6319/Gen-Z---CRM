@@ -117,7 +117,7 @@ async function notifyAssignee(userId, task) {
     `;
 
     await transporter.sendMail({
-      from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to: user.email,
       subject: `New Task Assigned: ${task.title}`,
       html

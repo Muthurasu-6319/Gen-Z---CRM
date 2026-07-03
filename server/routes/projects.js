@@ -38,7 +38,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 router.post('/', auth, async (req, res) => {
-  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_percentages } = req.body;
+  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, lead_generator_id, lead_generator_incentive } = req.body;
   try {
     const newProject = {
       name,
@@ -54,7 +54,9 @@ router.post('/', auth, async (req, res) => {
       tags: tags || [],
       created_by: req.user.id,
       assigned_to: assigned_to || [],
-      assigned_percentages: assigned_percentages || {}
+      assigned_amounts: assigned_amounts || {},
+      lead_generator_id: lead_generator_id || null,
+      lead_generator_incentive: lead_generator_incentive !== undefined ? lead_generator_incentive : null
     };
     
     const doc = await addDoc('projects', newProject);
@@ -69,7 +71,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_percentages } = req.body;
+  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, lead_generator_id, lead_generator_incentive } = req.body;
   try {
     const oldProject = await getDoc('projects', req.params.id);
     if (!oldProject) return res.status(404).json({ error: 'Project not found' });
@@ -87,7 +89,9 @@ router.put('/:id', auth, async (req, res) => {
       status: status || 'Started',
       tags: tags || [],
       assigned_to: assigned_to || [],
-      assigned_percentages: assigned_percentages || {}
+      assigned_amounts: assigned_amounts || {},
+      lead_generator_id: lead_generator_id || null,
+      lead_generator_incentive: lead_generator_incentive !== undefined ? lead_generator_incentive : null
     };
 
     const doc = await updateDoc('projects', req.params.id, updateData);
@@ -122,11 +126,10 @@ async function notifyAssignedUsers(userIds, project, oldProject) {
       const user = await getDoc('profiles', userId);
       if (!user || !user.email) continue;
       
-      const percentage = project.assigned_percentages && project.assigned_percentages[userId] ? project.assigned_percentages[userId] : null;
+      const assignedAmount = project.assigned_amounts && project.assigned_amounts[userId] ? project.assigned_amounts[userId] : null;
       let costInfo = '';
-      if (percentage && project.total_cost) {
-         const cut = (project.total_cost * percentage) / 100;
-         costInfo = `<p><strong>Your Allocated Amount:</strong> ₹${cut.toFixed(2)} (${percentage}% of total)</p>`;
+      if (assignedAmount !== null) {
+         costInfo = `<p><strong>Your Allocated Amount:</strong> ₹${Number(assignedAmount).toFixed(2)}</p>`;
       }
       
       const html = `
@@ -154,7 +157,7 @@ async function notifyAssignedUsers(userIds, project, oldProject) {
       `;
 
       await transporter.sendMail({
-        from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: user.email,
         subject: `You have been assigned to project: ${project.name}`,
         html,

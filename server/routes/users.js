@@ -1,8 +1,71 @@
 // server/routes/users.js — Firebase Firestore version
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 const auth = require('../middleware/auth');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne, setDoc } = require('../firebase-admin');
+
+const { createTransporter } = require('../mailer');
+
+async function sendWelcomeEmail(user, rawPassword) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn('SMTP credentials not configured, skipping welcome email.');
+      return;
+  }
+  const transporter = createTransporter();
+  
+  let permissionsHtml = `<p><strong>Access Role:</strong> ${user.role}</p>`;
+  if (user.role === 'Staff' && user.permissions) {
+    const allowed = Object.keys(user.permissions).filter(p => user.permissions[p].view);
+    if (allowed.length > 0) {
+        const formatted = allowed.map(p => p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, ' ')).join(', ');
+        permissionsHtml += `<p><strong>Accessible Modules:</strong> ${formatted}</p>`;
+    }
+  }
+
+  try {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4f46e5;">Welcome to GENZ CRM</h2>
+        <p>Hello <strong>${user.username}</strong>,</p>
+        <p>Your account has been successfully created. Here are your account details:</p>
+        
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p><strong>Name:</strong> ${user.username}</p>
+          <p><strong>Email ID:</strong> ${user.email}</p>
+          <p><strong>Password:</strong> ${rawPassword}</p>
+          <p><strong>Phone Number:</strong> ${user.mobile || 'N/A'}</p>
+          <p><strong>Designation:</strong> ${user.designation || 'N/A'}</p>
+          ${permissionsHtml}
+        </div>
+        
+        <p>You can log into the CRM platform at:</p>
+        <p><a href="https://crm.genzneuralx.com/" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 4px;">Login to CRM</a></p>
+        <p>URL: <a href="https://crm.genzneuralx.com/">https://crm.genzneuralx.com/</a></p>
+        <p>Please log in and change your password as soon as possible.</p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+            <h4 style="margin-bottom: 10px; color: #333;">Contact Details</h4>
+            <p style="margin: 0; color: #555;"><strong>GENZ NeuralX</strong></p>
+            <p style="margin: 0; color: #555;">Email: support@genzneuralx.com</p>
+            <p style="margin: 0; color: #555;">Website: www.genzneuralx.com</p>
+        </div>
+        
+        <p style="font-size: 12px; color: #888; margin-top: 20px;">This is an automated message from GENZ CRM.</p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: user.email,
+      subject: 'Welcome to GENZ CRM - Your Login Details',
+      html
+    });
+    console.log('Welcome email sent to', user.email);
+  } catch (e) {
+    console.error('Failed to send welcome email:', e);
+  }
+}
 
 // GET /api/users
 router.get('/', auth, async (req, res) => {
@@ -60,6 +123,10 @@ router.post('/', auth, async (req, res) => {
 
     const doc = await addDoc('profiles', newProfile);
     const { password: _pw, ...safeUser } = doc;
+    
+    // Send email asynchronously without blocking the response
+    sendWelcomeEmail(newProfile, password);
+    
     res.status(201).json(safeUser);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -40,7 +40,11 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
             
             if (assigned_to.length > 0) {
                 const staffData = await api.get('/api/users');
-                const filteredStaff = staffData.filter((u: any) => assigned_to.includes(u.id));
+                const filteredStaff = staffData.filter((u: any) => assigned_to.includes(u.id) || u.id === projectData.lead_generator_id);
+                setProject({ ...projectData, tags, assigned_to, assigned_staff: filteredStaff });
+            } else if (projectData.lead_generator_id) {
+                const staffData = await api.get('/api/users');
+                const filteredStaff = staffData.filter((u: any) => u.id === projectData.lead_generator_id);
                 setProject({ ...projectData, tags, assigned_to, assigned_staff: filteredStaff });
             } else {
                 setProject({ ...projectData, tags, assigned_to, assigned_staff: [] });
@@ -61,7 +65,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
     if (!project) return <div className="p-8 text-center text-red-500">Project not found.</div>;
 
     const isAdmin = currentProfile?.role === 'Admin';
-    const myPercentage = (currentProfile && project.assigned_percentages) ? project.assigned_percentages[currentProfile.id] : null;
+    const myAmount = (currentProfile && project.assigned_amounts) ? project.assigned_amounts[currentProfile.id] : null;
 
     return (
         <div>
@@ -100,10 +104,10 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                         <p>{project.total_cost !== undefined && project.total_cost !== null ? `₹${project.total_cost}` : 'N/A'}</p>
                         
                         {/* Custom Percentage Amount Display */}
-                        {!isAdmin && myPercentage && project.total_cost && (
+                        {!isAdmin && myAmount !== null && myAmount !== undefined && (
                              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
                                  <strong>My Allocated Amount:</strong><br/>
-                                 ₹{((project.total_cost * myPercentage) / 100).toFixed(2)} ({myPercentage}%)
+                                 ₹{myAmount}
                              </div>
                         )}
                     </div>
@@ -140,14 +144,29 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                             ))}
                         </div>
                     </div>
+                    {project.lead_generator_id && (
+                        <div>
+                            <h3 className="font-semibold text-gray-600">Lead Generator</h3>
+                            <p>
+                                {/* Find user by lead_generator_id from staffList if we had it, but we can just display the ID or fetch it. Actually we don't fetch all users here, let's just show a label, or check if it's assigned staff */}
+                                {project.assigned_staff.find(s => s.id === project.lead_generator_id)?.username || project.lead_generator_id}
+                            </p>
+                            {(isAdmin || currentProfile?.id === project.lead_generator_id) && project.lead_generator_incentive !== null && (
+                                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+                                    <strong>Incentive:</strong><br/>
+                                    ₹{project.lead_generator_incentive}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="mt-6 border-t pt-6">
                     <h3 className="font-semibold text-gray-600 mb-2">Assigned Staff</h3>
                     <div className="flex flex-col space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
-                            {project.assigned_staff.map(staff => {
-                                const staffPct = project.assigned_percentages?.[staff.id];
+                            {project.assigned_staff.filter(s => project.assigned_to?.includes(s.id)).map(staff => {
+                                const staffAmount = project.assigned_amounts?.[staff.id];
                                 return (
                                 <div key={staff.id} className="flex items-center p-2 bg-gray-50 border rounded-lg">
                                     <div title={staff.username} className="h-10 w-10 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
@@ -155,9 +174,9 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                                     </div>
                                     <div className="ml-3">
                                         <div className="text-sm font-medium">{staff.username}</div>
-                                        {isAdmin && staffPct && project.total_cost && (
+                                        {isAdmin && staffAmount !== undefined && staffAmount !== null && (
                                             <div className="text-xs text-gray-500">
-                                                ₹{((project.total_cost * staffPct) / 100).toFixed(2)} ({staffPct}%)
+                                                ₹{staffAmount}
                                             </div>
                                         )}
                                     </div>
