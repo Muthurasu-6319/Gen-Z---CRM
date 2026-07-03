@@ -111,16 +111,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const renderClockButton = () => {
     switch (status) {
       case 'Checked In': return (
-        <button onClick={handleClockAction} className="hidden sm:inline-flex items-center bg-yellow-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-yellow-600 transition-colors">
-          <PauseIcon className="h-5 w-5 mr-2"/> Pause
+        <button onClick={handleClockAction} className="inline-flex items-center bg-yellow-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-yellow-600 transition-colors">
+          <PauseIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Pause</span>
         </button>);
       case 'On Break': return (
-        <button onClick={handleClockAction} className="hidden sm:inline-flex items-center bg-blue-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600 transition-colors">
-          <PlayIcon className="h-5 w-5 mr-2"/> Resume
+        <button onClick={handleClockAction} className="inline-flex items-center bg-blue-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600 transition-colors">
+          <PlayIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Resume</span>
         </button>);
       default: return (
-        <button onClick={handleClockAction} className="hidden sm:inline-flex items-center bg-secondary text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-emerald-600 transition-colors">
-          <ClockIcon className="h-5 w-5 mr-2"/> Check In
+        <button onClick={handleClockAction} className="inline-flex items-center bg-secondary text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-emerald-600 transition-colors">
+          <ClockIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Check In</span>
         </button>);
     }
   };
@@ -136,8 +136,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
               {status !== 'Checked Out' && (
-                <button onClick={handleFinalCheckOut} className="hidden sm:inline-flex items-center bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">
-                  <LogoutIcon className="h-5 w-5 mr-2"/> Check Out
+                <button onClick={handleFinalCheckOut} className="inline-flex items-center bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-600">
+                  <LogoutIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Check Out</span>
                 </button>
               )}
               {renderClockButton()}
