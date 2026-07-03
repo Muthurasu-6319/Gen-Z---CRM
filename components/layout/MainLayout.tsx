@@ -22,6 +22,7 @@ import AttendancePage from '../../pages/AttendancePage';
 import MyAttendancePage from '../../pages/MyAttendancePage';
 import ProjectsPage from '../../pages/ProjectsPage';
 import StaffAttendanceDetailPage from '../../pages/StaffAttendanceDetailPage';
+import UserNotesPage from '../../pages/UserNotesPage';
 import ErrorBoundary from '../common/ErrorBoundary';
 import AccountingPage from '../../pages/AccountingPage';
 import InvoicesPage from '../../pages/InvoicesPage';
@@ -67,8 +68,9 @@ const pages: { [key: string]: React.ComponentType<any> } = {
   'support-ticket': TicketsPage,
   settings: SettingsPage,
   'backup-database': PlaceholderPage,
-  // v-- PUDHU CHANGE: Ippo ProjectDetailPage ah inga register panrom --v
   'project-detail': ProjectDetailPage,
+  'staff-attendance-detail': StaffAttendanceDetailPage,
+  'user-notes': UserNotesPage,
   'web-dashboard': WebDashboardPage,
   'app-dashboard': AppDashboardPage,
   'marketing-dashboard': MarketingDashboardPage,
@@ -106,6 +108,7 @@ const pageTitles: { [key: string]: string } = {
     'support-ticket': 'Support Ticket',
     settings: 'Settings',
     'backup-database': 'Backup Database',
+    'user-notes': 'User Notes',
     'web-dashboard': 'Web Development Dashboard',
     'app-dashboard': 'App Development Dashboard',
     'marketing-dashboard': 'Digital Marketing Dashboard',

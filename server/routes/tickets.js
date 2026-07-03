@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { notifyAssignedUsers } = require('../mailer');
 
 // GET all tickets
 router.get('/', auth, async (req, res) => {
@@ -60,6 +61,10 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   const { status, assigned_to, internal_notes, replies } = req.body;
   try {
+    const [oldRows] = await db.query('SELECT assigned_to, title FROM tickets WHERE id = ?', [req.params.id]);
+    const oldAssignedTo = oldRows[0]?.assigned_to;
+    const title = oldRows[0]?.title || 'Support Ticket';
+
     // We only update fields that are provided
     let query = 'UPDATE tickets SET ';
     const params = [];
@@ -83,6 +88,11 @@ router.put('/:id', auth, async (req, res) => {
 
     await db.query(query, params);
     const [rows] = await db.query('SELECT * FROM tickets WHERE id = ?', [req.params.id]);
+
+    if (assigned_to && assigned_to !== oldAssignedTo) {
+        notifyAssignedUsers([assigned_to], 'Support Ticket', title);
+    }
+
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });

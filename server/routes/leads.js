@@ -1,35 +1,53 @@
-// server/routes/leads.js
 const router = require('express').Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { notifyAssignedUsers } = require('../mailer');
 
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM leads ORDER BY created_at DESC');
-    res.json(rows);
+    if (req.user.role === 'Staff') {
+        const myLeads = rows.filter(r => r.assigned_to === req.user.id);
+        res.json(myLeads);
+    } else {
+        res.json(rows);
+    }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', auth, async (req, res) => {
-  const { client_name, requirements, mobile_no, notes } = req.body;
+  const { client_name, requirements, mobile_no, notes, location, assigned_to } = req.body;
   try {
     const [result] = await db.query(
-      `INSERT INTO leads (client_name, requirements, mobile_no, notes, created_by) VALUES (?, ?, ?, ?, ?)`,
-      [client_name, requirements || null, mobile_no || null, notes || null, req.user.id]
+      `INSERT INTO leads (client_name, requirements, mobile_no, notes, location, assigned_to, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [client_name, requirements || null, mobile_no || null, notes || null, location || null, assigned_to || null, req.user.id]
     );
     const [rows] = await db.query('SELECT * FROM leads WHERE id = ?', [result.insertId]);
+    
+    if (assigned_to) {
+        notifyAssignedUsers([assigned_to], 'Lead', client_name, requirements);
+    }
+    
     res.status(201).json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const { client_name, requirements, mobile_no, notes } = req.body;
+  const { client_name, requirements, mobile_no, notes, location, assigned_to } = req.body;
   try {
+    const [oldRows] = await db.query('SELECT assigned_to FROM leads WHERE id = ?', [req.params.id]);
+    const oldAssignedTo = oldRows[0]?.assigned_to;
+
     await db.query(
-      `UPDATE leads SET client_name=?, requirements=?, mobile_no=?, notes=? WHERE id=?`,
-      [client_name, requirements || null, mobile_no || null, notes || null, req.params.id]
+      `UPDATE leads SET client_name=?, requirements=?, mobile_no=?, notes=?, location=?, assigned_to=? WHERE id=?`,
+      [client_name, requirements || null, mobile_no || null, notes || null, location || null, assigned_to || null, req.params.id]
     );
     const [rows] = await db.query('SELECT * FROM leads WHERE id = ?', [req.params.id]);
+
+    if (assigned_to && assigned_to !== oldAssignedTo) {
+        notifyAssignedUsers([assigned_to], 'Lead', client_name, requirements);
+    }
+
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -29,8 +29,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
-  const [assignedPercentages, setAssignedPercentages] = useState<Record<string, number>>({});
+  const [assignedAmounts, setAssignedAmounts] = useState<Record<string, number>>({});
   const [status, setStatus] = useState<Project['status']>('Started');
+  const [leadGeneratorId, setLeadGeneratorId] = useState('');
+  const [leadGeneratorIncentive, setLeadGeneratorIncentive] = useState('');
 
   const [staffList, setStaffList] = useState<User[]>([]);
   const [clientList, setClientList] = useState<User[]>([]);
@@ -71,11 +73,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
         setEndDate(projectToEdit.end_date || '');
         setStatus(projectToEdit.status);
         setAssignedTo(projectToEdit.assigned_to || []);
-        setAssignedPercentages(projectToEdit.assigned_percentages || {});
+        setAssignedAmounts(projectToEdit.assigned_amounts || {});
+        setLeadGeneratorId(projectToEdit.lead_generator_id || '');
+        setLeadGeneratorIncentive(projectToEdit.lead_generator_incentive !== undefined && projectToEdit.lead_generator_incentive !== null ? String(projectToEdit.lead_generator_incentive) : '');
     } else {
         setName(''); setCategory(''); setDescription(''); setTags('');
         setClientName(''); setClientMobile(''); setTotalCost(''); setProjectAsset(''); setStartDate(''); setEndDate('');
-        setAssignedTo([]); setAssignedPercentages({}); setStatus('Started');
+        setAssignedTo([]); setAssignedAmounts({}); setStatus('Started');
+        setLeadGeneratorId(''); setLeadGeneratorIncentive('');
     }
   }, [projectToEdit, isOpen]);
 
@@ -93,7 +98,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
       start_date: startDate || null,
       end_date: endDate || null,
       assigned_to: assignedTo,
-      assigned_percentages: assignedPercentages,
+      assigned_amounts: assignedAmounts,
+      lead_generator_id: leadGeneratorId || null,
+      lead_generator_incentive: leadGeneratorIncentive === '' ? null : Number(leadGeneratorIncentive),
       status,
       created_by: '',
     };
@@ -107,7 +114,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
             : [...prev, profileId]
     );
     if (assignedTo.includes(profileId)) {
-        setAssignedPercentages(prev => {
+        setAssignedAmounts(prev => {
             const newObj = {...prev};
             delete newObj[profileId];
             return newObj;
@@ -115,8 +122,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
     }
   };
 
-  const handlePercentageChange = (profileId: string, val: string) => {
-      setAssignedPercentages(prev => ({
+  const handleAmountChange = (profileId: string, val: string) => {
+      setAssignedAmounts(prev => ({
           ...prev,
           [profileId]: Number(val)
       }));
@@ -127,7 +134,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
         setAssignedTo(staffList.map(staff => staff.id));
     } else {
         setAssignedTo([]);
-        setAssignedPercentages({});
+        setAssignedAmounts({});
     }
   };
   
@@ -158,6 +165,16 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
             <InputField label="Start Date" type="date" value={startDate} onChange={(e: any) => setStartDate(e.target.value)} />
             <InputField label="End Date" type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Lead Generator</label>
+              <select value={leadGeneratorId} onChange={(e) => setLeadGeneratorId(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-white">
+                 <option value="">-- Select Lead Generator --</option>
+                 {staffList.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
+              </select>
+            </div>
+            <InputField label="Lead Generator Incentive" type="number" value={leadGeneratorIncentive} onChange={(e: any) => setLeadGeneratorIncentive(e.target.value)} placeholder="Amount (e.g., 1000)" />
+        </div>
         <div>
             <label className="block text-sm font-medium text-gray-700">Project Asset Link/Detail (or pick folder)</label>
             <div className="flex space-x-2 mt-1">
@@ -172,7 +189,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
         </div>
         
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To (with percentage share %)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To (with Flat Amount ₹)</label>
             <div className="p-2 border rounded-md max-h-48 overflow-y-auto bg-gray-50">
                 <div className="flex items-center p-2 border-b sticky top-0 bg-gray-50">
                     <input 
@@ -202,15 +219,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
                             </div>
                             {isSelected && (
                                 <div className="flex items-center">
+                                    <span className="mr-1 text-sm text-gray-500">₹</span>
                                     <input 
                                         type="number" 
-                                        min="0" max="100" 
-                                        placeholder="%" 
-                                        value={assignedPercentages[staff.id] || ''} 
-                                        onChange={(e) => handlePercentageChange(staff.id, e.target.value)}
-                                        className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
+                                        min="0" 
+                                        placeholder="Amount" 
+                                        value={assignedAmounts[staff.id] || ''} 
+                                        onChange={(e) => handleAmountChange(staff.id, e.target.value)}
+                                        className="w-24 px-2 py-1 text-sm border border-gray-300 rounded"
                                     />
-                                    <span className="ml-1 text-sm text-gray-500">%</span>
                                 </div>
                             )}
                         </div>

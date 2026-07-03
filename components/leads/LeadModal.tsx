@@ -19,6 +19,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, onSave, leadToEd
   const [requirements, setRequirements] = useState('');
   const [mobile_no, setMobileNo] = useState('');
   const [notes, setNotes] = useState('');
+  const [location, setLocation] = useState('');
 
   useEffect(() => {
     if (leadToEdit && isOpen) {
@@ -26,11 +27,13 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, onSave, leadToEd
       setRequirements(leadToEdit.requirements || '');
       setMobileNo(leadToEdit.mobile_no || '');
       setNotes(leadToEdit.notes || '');
+      setLocation(leadToEdit.location || '');
     } else {
       setClientName('');
       setRequirements('');
       setMobileNo('');
       setNotes('');
+      setLocation('');
     }
   }, [leadToEdit, isOpen]);
 
@@ -40,7 +43,7 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, onSave, leadToEd
       alert('Client Name is required.');
       return;
     }
-    const leadData: LeadFormData = { client_name, requirements, mobile_no, notes };
+    const leadData: LeadFormData = { client_name, requirements, mobile_no, notes, location };
     onSave(leadData);
   };
 
@@ -48,7 +51,10 @@ const LeadModal: React.FC<LeadModalProps> = ({ isOpen, onClose, onSave, leadToEd
     <Modal isOpen={isOpen} onClose={onClose} title={leadToEdit ? 'Edit Lead' : 'Create New Lead'}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <InputField label="Client Name" value={client_name} onChange={(e) => setClientName(e.target.value)} required />
-        <InputField label="Mobile Number" value={mobile_no} onChange={(e) => setMobileNo(e.target.value)} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Mobile Number" value={mobile_no} onChange={(e) => setMobileNo(e.target.value)} />
+            <InputField label="Location" value={location} onChange={(e) => setLocation(e.target.value)} />
+        </div>
         {/* v-- IPPO INGA 'REQUIREMENTS' AND 'NOTES' ODA ORDER AH MAATHROM --v */}
         <TextareaField label="Requirements" rows={3} value={requirements} onChange={(e) => setRequirements(e.target.value)} />
         <TextareaField label="Short Notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
