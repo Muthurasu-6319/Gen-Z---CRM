@@ -24,13 +24,28 @@ interface TaskWithAssignee extends Task {
     profiles: Pick<User, 'username'> | null;
 }
 
-const ViewTaskModal: React.FC<{ isOpen: boolean; onClose: () => void; task: TaskWithAssignee | null; }> = ({ isOpen, onClose, task }) => {
+const ViewTaskModal: React.FC<{ isOpen: boolean; onClose: () => void; task: TaskWithAssignee | null; currentProfile: any; onStatusUpdate: (id: number, status: string) => void }> = ({ isOpen, onClose, task, currentProfile, onStatusUpdate }) => {
     if (!task) return null;
+    const canUpdateStatus = currentProfile?.role === 'Admin' || (currentProfile && task.assignee_id === currentProfile.id);
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={task.title}>
             <div className="space-y-4">
-                <div><h3 className="font-semibold text-gray-600">Status</h3><p>{task.status}</p></div>
-                <div><h3 className="font-semibold text-gray-600">Priority</h3><p>{task.priority}</p></div>
+                <div>
+                    <h3 className="font-semibold text-gray-600 mb-1">Status</h3>
+                    {canUpdateStatus ? (
+                        <select 
+                            value={task.status}
+                            onChange={(e) => onStatusUpdate(task.id, e.target.value)}
+                            className={`px-3 py-1 text-sm font-semibold rounded-full border border-gray-200 focus:ring-2 focus:ring-primary cursor-pointer ${statusColors[task.status]}`}
+                        >
+                            {Object.keys(statusColors).map(s => <option key={s} value={s} className="bg-white text-black">{s}</option>)}
+                        </select>
+                    ) : (
+                        <p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[task.status]}`}>{task.status}</span></p>
+                    )}
+                </div>
+                <div><h3 className="font-semibold text-gray-600">Priority</h3><p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${priorityColors[task.priority]}`}>{task.priority}</span></p></div>
                 <div><h3 className="font-semibold text-gray-600">Assigned To</h3><p>{task.profiles?.username || 'Unassigned'}</p></div>
                 <div><h3 className="font-semibold text-gray-600">Start Date</h3><p>{task.start_date || 'Not set'}</p></div>
                 <div><h3 className="font-semibold text-gray-600">Due Date</h3><p>{task.due_date || 'Not set'}</p></div>
@@ -134,6 +149,21 @@ const TasksPage: React.FC<{ title: string }> = ({ title }) => {
             alert(`Error deleting task: ${err.message || err}`);
         }
     }
+  };
+
+  const handleUpdateStatus = async (taskId: number, newStatus: string) => {
+      try {
+          const task = tasks.find(t => t.id === taskId);
+          if (!task) return;
+          const updated = { ...task, status: newStatus };
+          await api.put(`/api/tasks/${taskId}`, updated);
+          setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as any } : t));
+          if (viewingTask && viewingTask.id === taskId) {
+              setViewingTask({ ...viewingTask, status: newStatus as any });
+          }
+      } catch (err: any) {
+          alert(`Error updating status: ${err.message || err}`);
+      }
   };
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,7 +282,7 @@ const TasksPage: React.FC<{ title: string }> = ({ title }) => {
       </div>
       
       <TaskModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleSaveTask} taskToEdit={taskToEdit} isSaving={isSaving} />
-      <ViewTaskModal isOpen={!!viewingTask} onClose={() => setViewingTask(null)} task={viewingTask} />
+      <ViewTaskModal isOpen={!!viewingTask} onClose={() => setViewingTask(null)} task={viewingTask} currentProfile={currentProfile} onStatusUpdate={handleUpdateStatus} />
     </>
   );
 };

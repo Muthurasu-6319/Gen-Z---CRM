@@ -59,6 +59,19 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post('/bulk-delete', auth, async (req, res) => {
+  const { leadIds } = req.body;
+  if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+    return res.status(400).json({ error: 'No leads provided' });
+  }
+  try {
+    for (const id of leadIds) {
+      await db.query(`DELETE FROM leads WHERE id = ?`, [id]);
+    }
+    res.json({ message: 'Leads deleted successfully' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/:id/convert', auth, async (req, res) => {
   try {
     const [leads] = await db.query('SELECT * FROM leads WHERE id = ?', [req.params.id]);
