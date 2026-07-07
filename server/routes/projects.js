@@ -38,7 +38,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 router.post('/', auth, async (req, res) => {
-  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, lead_generator_id, lead_generator_incentive } = req.body;
+  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, assigned_by, lead_generator_id, lead_generator_incentive } = req.body;
   try {
     const newProject = {
       name,
@@ -55,6 +55,7 @@ router.post('/', auth, async (req, res) => {
       created_by: req.user.id,
       assigned_to: assigned_to || [],
       assigned_amounts: assigned_amounts || {},
+      assigned_by: assigned_by || {},
       lead_generator_id: lead_generator_id || null,
       lead_generator_incentive: lead_generator_incentive !== undefined ? lead_generator_incentive : null
     };
@@ -71,7 +72,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, lead_generator_id, lead_generator_incentive } = req.body;
+  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, assigned_by, lead_generator_id, lead_generator_incentive } = req.body;
   try {
     const oldProject = await getDoc('projects', req.params.id);
     if (!oldProject) return res.status(404).json({ error: 'Project not found' });
@@ -90,6 +91,7 @@ router.put('/:id', auth, async (req, res) => {
       tags: tags || [],
       assigned_to: assigned_to || [],
       assigned_amounts: assigned_amounts || {},
+      assigned_by: assigned_by || {},
       lead_generator_id: lead_generator_id || null,
       lead_generator_incentive: lead_generator_incentive !== undefined ? lead_generator_incentive : null
     };

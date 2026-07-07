@@ -74,9 +74,25 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
             <div className="bg-white shadow-md rounded-lg p-6">
                 <div className="flex justify-between items-start">
                     <h1 className="text-3xl font-bold text-text-primary">{project.name}</h1>
-                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[project.status]}`}>
-                        {project.status}
-                    </span>
+                    {(isAdmin || (currentProfile && project.assigned_to?.includes(currentProfile.id))) ? (
+                        <select 
+                            value={project.status}
+                            onChange={async (e) => {
+                                const newStatus = e.target.value;
+                                try {
+                                    await api.put(`/api/projects/${project.id}`, { ...project, status: newStatus });
+                                    setProject({ ...project, status: newStatus as any });
+                                } catch (err) { alert('Error updating status'); }
+                            }}
+                            className={`px-3 py-1 text-sm font-semibold rounded-full border border-gray-200 focus:ring-2 focus:ring-primary cursor-pointer ${statusColors[project.status]}`}
+                        >
+                            {Object.keys(statusColors).map(s => <option key={s} value={s} className="bg-white text-black">{s}</option>)}
+                        </select>
+                    ) : (
+                        <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[project.status]}`}>
+                            {project.status}
+                        </span>
+                    )}
                 </div>
                 
                 <div className="mt-2 text-sm text-gray-500">
@@ -108,6 +124,11 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                              <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
                                  <strong>My Allocated Amount:</strong><br/>
                                  ₹{myAmount}
+                                 {project.assigned_by && project.assigned_by[currentProfile.id] && (
+                                     <div className="text-xs mt-1 text-green-700 opacity-80">
+                                         Assigned By: {project.assigned_by[currentProfile.id]}
+                                     </div>
+                                 )}
                              </div>
                         )}
                     </div>
@@ -176,7 +197,14 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                                         <div className="text-sm font-medium">{staff.username}</div>
                                         {isAdmin && staffAmount !== undefined && staffAmount !== null && (
                                             <div className="text-xs text-gray-500">
-                                                ₹{staffAmount}
+                                                ₹{staffAmount} 
+                                                {project.assigned_by?.[staff.id] && ` (Assigned By: ${project.assigned_by[staff.id]})`}
+                                            </div>
+                                        )}
+                                        {/* For non-admins looking at other staff, they won't see amount, but they could see who assigned them if needed. But for now, only admins see the amount and who assigned them. Wait, CTO can also see staff they assigned. Let's just show Assigned By for everyone */}
+                                        {!isAdmin && project.assigned_by?.[staff.id] && (
+                                            <div className="text-xs text-gray-500">
+                                                Assigned By: {project.assigned_by[staff.id]}
                                             </div>
                                         )}
                                     </div>

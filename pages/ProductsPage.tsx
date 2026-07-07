@@ -19,12 +19,53 @@ interface ProductWithCollaborators extends Product {
     collaborator_users: Pick<User, 'id' | 'username'>[];
 }
 
+import Modal from '../components/common/Modal';
+import { EyeIcon } from '../components/icons/Icons';
+
+const ViewProductModal: React.FC<{ isOpen: boolean; onClose: () => void; product: ProductWithCollaborators | null; currentProfile: any; onStatusUpdate: (id: number, status: string) => void }> = ({ isOpen, onClose, product, currentProfile, onStatusUpdate }) => {
+    if (!product) return null;
+    const canUpdateStatus = currentProfile?.role === 'Admin' || (currentProfile && product.collaborators?.includes(currentProfile.id));
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={product.name}>
+            <div className="space-y-4">
+                <div>
+                    <h3 className="font-semibold text-gray-600 mb-1">Status</h3>
+                    {canUpdateStatus ? (
+                        <select 
+                            value={product.status}
+                            onChange={(e) => onStatusUpdate(product.id, e.target.value)}
+                            className={`px-3 py-1 text-sm font-semibold rounded-full border border-gray-200 focus:ring-2 focus:ring-primary cursor-pointer ${statusColors[product.status]}`}
+                        >
+                            {Object.keys(statusColors).map(s => <option key={s} value={s} className="bg-white text-black">{s}</option>)}
+                        </select>
+                    ) : (
+                        <p><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[product.status]}`}>{product.status}</span></p>
+                    )}
+                </div>
+                <div><h3 className="font-semibold text-gray-600">Category</h3><p>{product.category || 'N/A'}</p></div>
+                <div><h3 className="font-semibold text-gray-600">Tags</h3><p>{product.tags?.join(', ') || 'N/A'}</p></div>
+                <div><h3 className="font-semibold text-gray-600">Collaborators</h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                        {(product.collaborator_users || []).map(staff => (
+                            <span key={staff.id} className="bg-gray-100 px-2 py-1 rounded text-sm">{staff.username}</span>
+                        ))}
+                    </div>
+                </div>
+                <div><h3 className="font-semibold text-gray-600">End Date</h3><p>{product.end_date || 'Not set'}</p></div>
+                {product.notes && <div><h3 className="font-semibold text-gray-600">Notes</h3><p className="whitespace-pre-wrap">{product.notes}</p></div>}
+            </div>
+        </Modal>
+    );
+};
+
 const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [products, setProducts] = useState<ProductWithCollaborators[]>([]);
     const [loading, setLoading] = useState(true);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [viewingProduct, setViewingProduct] = useState<ProductWithCollaborators | null>(null);
     
     const { hasPermission, currentProfile } = usePermissions();
     const canCreate = hasPermission('products', 'create');
@@ -103,6 +144,21 @@ const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
             } catch (err: any) {
                 alert(`Error deleting product: ${err.message || err}`);
             }
+        }
+    };
+
+    const handleUpdateStatus = async (productId: number, newStatus: string) => {
+        try {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            const updated = { ...product, status: newStatus };
+            await api.put(`/api/products/${productId}`, updated);
+            setProducts(prev => prev.map(p => p.id === productId ? { ...p, status: newStatus as any } : p));
+            if (viewingProduct && viewingProduct.id === productId) {
+                setViewingProduct({ ...viewingProduct, status: newStatus as any });
+            }
+        } catch (err: any) {
+            alert(`Error updating status: ${err.message || err}`);
         }
     };
 
@@ -205,6 +261,7 @@ const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right space-x-2">
+                                                <button onClick={() => setViewingProduct(product)} className="p-1 text-gray-400 hover:text-primary" title="View Product"><EyeIcon className="h-5 w-5" /></button>
                                                 {canEdit && <button onClick={() => { setProductToEdit(product); setModalOpen(true); }} className="p-1 text-gray-400 hover:text-primary" title="Edit Product"><PencilIcon className="h-5 w-5" /></button>}
                                                 {canDelete && <button onClick={() => handleDeleteProduct(product.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Product"><TrashIcon className="h-5 w-5" /></button>}
                                             </td>
@@ -224,6 +281,7 @@ const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
                 productToEdit={productToEdit}
                 isSaving={isSaving}
             />
+            <ViewProductModal isOpen={!!viewingProduct} onClose={() => setViewingProduct(null)} product={viewingProduct} currentProfile={currentProfile} onStatusUpdate={handleUpdateStatus} />
         </>
     );
 };

@@ -1,9 +1,9 @@
-// src/components/projects/ProjectModal.tsx
 
 import React, { useState, useEffect } from 'react';
 import Modal from '../common/Modal';
 import { api, API_BASE } from '../../apiClient';
 import { Project, User } from '../../types';
+import { usePermissions } from '../auth/PermissionsContext';
 
 type ProjectFormData = Omit<Project, 'id' | 'created_at' | 'client_id'> & {
     client_name?: string | null;
@@ -30,6 +30,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
   const [endDate, setEndDate] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [assignedAmounts, setAssignedAmounts] = useState<Record<string, number>>({});
+  const [assignedBy, setAssignedBy] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Project['status']>('Started');
   const [leadGeneratorId, setLeadGeneratorId] = useState('');
   const [leadGeneratorIncentive, setLeadGeneratorIncentive] = useState('');
@@ -74,12 +75,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
         setStatus(projectToEdit.status);
         setAssignedTo(projectToEdit.assigned_to || []);
         setAssignedAmounts(projectToEdit.assigned_amounts || {});
+        setAssignedBy(projectToEdit.assigned_by || {});
         setLeadGeneratorId(projectToEdit.lead_generator_id || '');
         setLeadGeneratorIncentive(projectToEdit.lead_generator_incentive !== undefined && projectToEdit.lead_generator_incentive !== null ? String(projectToEdit.lead_generator_incentive) : '');
     } else {
         setName(''); setCategory(''); setDescription(''); setTags('');
         setClientName(''); setClientMobile(''); setTotalCost(''); setProjectAsset(''); setStartDate(''); setEndDate('');
-        setAssignedTo([]); setAssignedAmounts({}); setStatus('Started');
+        setAssignedTo([]); setAssignedAmounts({}); setAssignedBy({}); setStatus('Started');
         setLeadGeneratorId(''); setLeadGeneratorIncentive('');
     }
   }, [projectToEdit, isOpen]);
@@ -99,6 +101,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
       end_date: endDate || null,
       assigned_to: assignedTo,
       assigned_amounts: assignedAmounts,
+      assigned_by: assignedBy,
       lead_generator_id: leadGeneratorId || null,
       lead_generator_incentive: leadGeneratorIncentive === '' ? null : Number(leadGeneratorIncentive),
       status,
@@ -107,18 +110,31 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
     onSave(projectData);
   };
 
+  const { currentProfile } = usePermissions();
+
   const handleAssigneeChange = (profileId: string) => {
+    const isAdding = !assignedTo.includes(profileId);
     setAssignedTo(prev => 
-        prev.includes(profileId) 
-            ? prev.filter(id => id !== profileId) 
-            : [...prev, profileId]
+        isAdding
+            ? [...prev, profileId]
+            : prev.filter(id => id !== profileId) 
     );
-    if (assignedTo.includes(profileId)) {
+    if (!isAdding) {
         setAssignedAmounts(prev => {
             const newObj = {...prev};
             delete newObj[profileId];
             return newObj;
         });
+        setAssignedBy(prev => {
+            const newObj = {...prev};
+            delete newObj[profileId];
+            return newObj;
+        });
+    } else {
+        setAssignedBy(prev => ({
+            ...prev,
+            [profileId]: currentProfile?.username || 'Admin'
+        }));
     }
   };
 
@@ -132,9 +148,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
         setAssignedTo(staffList.map(staff => staff.id));
+        const newAssignedBy: Record<string, string> = {};
+        staffList.forEach(staff => {
+            newAssignedBy[staff.id] = assignedBy[staff.id] || currentProfile?.username || 'Admin';
+        });
+        setAssignedBy(newAssignedBy);
     } else {
         setAssignedTo([]);
         setAssignedAmounts({});
+        setAssignedBy({});
     }
   };
   

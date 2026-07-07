@@ -229,6 +229,11 @@ async function executeFirestoreQuery(sql, params = []) {
       const whereField = whereFieldMatch[1];
       const whereVal = params[0];
       
+      if (whereField === 'id') {
+          await db.collection(table).doc(String(whereVal)).delete();
+          return [{ affectedRows: 1 }, null];
+      }
+
       const snapshot = await db.collection(table).where(whereField, '==', whereVal).get();
       let affectedRows = 0;
       

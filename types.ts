@@ -51,6 +51,7 @@ export interface Project {
    created_by: string;
    assigned_to: string[] | null;
    assigned_amounts?: Record<string, number> | null;
+   assigned_by?: Record<string, string> | null;
    assigned_users?: User[];
    lead_generator_id?: string | null;
    lead_generator_incentive?: number | null;

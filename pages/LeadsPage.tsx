@@ -104,25 +104,47 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
 
     setIsUploading(true);
     Papa.parse(file, {
-      header: true,
+      header: false,
       skipEmptyLines: true,
       complete: async (results) => {
-        const newLeads = results.data.map((row: any) => ({
-          client_name: row.client_name,
-          requirements: row.requirements,
-          mobile_no: row.mobile_no,
-          notes: row.notes,
-          created_by: currentProfile?.id,
-        }));
+        let data = results.data as string[][];
+        if (data.length > 0 && data[0][0]?.toLowerCase().includes('shop name')) {
+            data = data.slice(1);
+        }
+        
+        const newLeads = data.map((row) => {
+            const shopName = row[0] || '';
+            const type = row[1] || '';
+            const location = row[2] || '';
+            const phone = row[3] || '';
+            const reqs = row[4] || '';
+            const notes = row[5] || '';
+            
+            const combinedNotes = type ? `[Type: ${type}] ${notes}` : notes;
+
+            return {
+                client_name: shopName,
+                requirements: reqs,
+                mobile_no: phone,
+                notes: combinedNotes,
+                location: location,
+                created_by: currentProfile?.id,
+            };
+        }).filter(l => l.client_name.trim() !== '');
 
         if(newLeads.length > 0) {
             try {
-                await Promise.all(newLeads.map(l => api.post('/api/leads', l)));
+                // To avoid overwhelming the server, send them sequentially or in small batches
+                for (let i = 0; i < newLeads.length; i++) {
+                    await api.post('/api/leads', newLeads[i]);
+                }
                 alert(`${newLeads.length} leads imported successfully!`);
                 fetchLeadsAndUsers();
             } catch (err: any) {
                 alert(`Error importing CSV: ${err.message || err}`);
             }
+        } else {
+            alert('No valid leads found in CSV.');
         }
         setIsUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -149,6 +171,23 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
               fetchLeadsAndUsers();
           } catch (err: any) {
               alert(`Error assigning leads: ${err.message || err}`);
+          } finally {
+              setIsSaving(false);
+          }
+      }
+  };
+
+  const handleBulkDelete = async () => {
+      if (selectedLeads.size === 0) return;
+      if (window.confirm(`Are you sure you want to permanently delete ${selectedLeads.size} leads?`)) {
+          setIsSaving(true);
+          try {
+              await api.post('/api/leads/bulk-delete', { leadIds: Array.from(selectedLeads) });
+              alert('Leads deleted successfully!');
+              setSelectedLeads(new Set());
+              fetchLeadsAndUsers();
+          } catch (err: any) {
+              alert(`Error deleting leads: ${err.message || err}`);
           } finally {
               setIsSaving(false);
           }
@@ -204,8 +243,11 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
                       <option value="">-- Assign To User --</option>
                       {users.filter(u => u.role !== 'Client').map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                   </select>
-                  <button onClick={handleBulkAssign} disabled={isSaving || !assignUser} className="px-3 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50">
+                  <button onClick={handleBulkAssign} disabled={isSaving || !assignUser} className="px-3 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center">
                       Assign ({selectedLeads.size})
+                  </button>
+                  <button onClick={handleBulkDelete} disabled={isSaving} className="px-3 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-50 flex items-center">
+                      <TrashIcon className="h-4 w-4 mr-1" /> Delete ({selectedLeads.size})
                   </button>
               </div>
           )}
