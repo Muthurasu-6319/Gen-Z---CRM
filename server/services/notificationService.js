@@ -2,12 +2,11 @@ const { getDoc, findOne, addDoc } = require('../firebase-admin');
 const { createTransporter } = require('../mailer');
 require('dotenv').config();
 
-const transporter = createTransporter();
-
 // Helper to send email safely
 async function sendNotification(toEmail, subject, html) {
   if (!toEmail || toEmail === 'admin-env') return;
   try {
+    const transporter = await createTransporter();
     await transporter.sendMail({
       from: `"Gen Z CRM" <${process.env.SMTP_USER}>`,
       to: toEmail,
