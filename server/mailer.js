@@ -8,22 +8,16 @@ if (dns.setDefaultResultOrder) {
 }
 
 function createTransporter() {
-  const port = parseInt(process.env.SMTP_PORT || '465');
-  const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
-  
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: port,
-    secure: isSecure,
+    service: 'gmail',
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    // Explicitly force IPv4 network socket resolution
-    family: 4,
-    connectionTimeout: 10000,
-    greetingTimeout: 5000,
-    socketTimeout: 10000
+    // Prevent indefinite hanging
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000
   });
 }
 
