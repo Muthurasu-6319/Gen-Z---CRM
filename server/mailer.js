@@ -19,7 +19,11 @@ function createTransporter() {
     tls: {
       rejectUnauthorized: false
     },
-    family: 4, // Force IPv4 to prevent ENETUNREACH on Render
+    lookup: (hostname, options, callback) => {
+      dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+        callback(err, address, family);
+      });
+    },
     connectionTimeout: 15000,
     greetingTimeout: 10000,
     socketTimeout: 15000
