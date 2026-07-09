@@ -5,18 +5,15 @@ import { PlusIcon, TrashIcon, PencilIcon } from '../icons/Icons';
 import { PageId } from '../../types';
 import { PERMISSION_PARENT_MAP } from '../../config/pages';
 
+import { ALL_PAGES } from '../../config/pages';
+
 export interface Role {
     id: string;
     name: string;
     permissions: any;
 }
 
-const PAGES: PageId[] = [
-    'dashboard', 'projects', 'tasks', 'file-manager', 'calendar', 'meetings',
-    'accounting', 'invoices', 'quotes', 'leads', 'products', 'attendance',
-    'user-management', 'leave-management', 'reports', 'settings',
-    'mailbox', 'mailbox-inbox', 'mail-templates', 'client-reports', 'support-ticket'
-];
+const PAGES: PageId[] = ALL_PAGES.map(p => p.id as PageId);
 
 const RolesManagement: React.FC = () => {
     const [roles, setRoles] = useState<Role[]>([]);

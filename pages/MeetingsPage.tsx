@@ -32,7 +32,7 @@ const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
   const fetchMeetingsAndStaff = useCallback(async () => {
     try {
       const profiles = await api.get('/api/users');
-      setStaffList(profiles.filter((u: any) => u.role === 'Admin' || u.role === 'Staff') as User[]);
+      setStaffList(profiles.filter((u: any) => u.role !== 'Client') as User[]);
       setClientList(profiles.filter((u: any) => u.role === 'Client') as User[]);
 
       const data = await api.get('/api/meetings');

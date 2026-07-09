@@ -6,7 +6,7 @@ const { notifyAssignedUsers } = require('../mailer');
 router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM leads ORDER BY created_at DESC');
-    if (req.user.role === 'Staff') {
+    if (req.user.role !== 'Admin') {
         const myLeads = rows.filter(r => r.assigned_to === req.user.id);
         res.json(myLeads);
     } else {

@@ -34,7 +34,7 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const canSendMessage = hasPermission('team-chat', 'create');
 
-  const isStaff = currentProfile?.role === 'Admin' || currentProfile?.role === 'Staff';
+  const isStaff = currentProfile?.role !== 'Client';
 
   useEffect(() => {
       if (currentProfile) {
@@ -48,8 +48,13 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
       }
   }, [currentProfile, isStaff]);
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  useEffect(scrollToBottom, [messages]);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Fetch Users
   useEffect(() => {
@@ -156,43 +161,47 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
     <div className="flex h-[calc(100vh-128px)] bg-white rounded-lg shadow-md overflow-hidden">
       {/* Sidebar: Channels & Users */}
       <div className="w-64 bg-sidebar-bg text-sidebar-text flex flex-col border-r border-gray-700 flex-shrink-0 h-full">
-        {isStaff && (
-            <div className="p-4 border-b border-gray-700">
-                <h2 className="text-lg font-bold text-white mb-2">Channels</h2>
-                <ul className="space-y-1">
+        <div className="p-4 border-b border-gray-700">
+            <h2 className="text-lg font-bold text-white mb-2">Channels</h2>
+            <ul className="space-y-1">
+                {hasPermission('chat-staff', 'view') && (
                     <li>
                         <button onClick={() => setCurrentRoom('staff_group')} className={`w-full text-left px-3 py-2 rounded-md ${currentRoom === 'staff_group' ? 'bg-primary text-white' : 'hover:bg-gray-700 text-gray-300'}`}>
                             # Staff Chat
                         </button>
                     </li>
+                )}
+                {hasPermission('chat-client', 'view') && (
                     <li>
                         <button onClick={() => setCurrentRoom('client_group')} className={`w-full text-left px-3 py-2 rounded-md ${currentRoom === 'client_group' ? 'bg-primary text-white' : 'hover:bg-gray-700 text-gray-300'}`}>
                             # Client Chat
                         </button>
                     </li>
+                )}
+            </ul>
+        </div>
+        
+        {hasPermission('chat-dm', 'view') && (
+            <div className="flex-1 overflow-y-auto p-4">
+                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Direct Messages</h2>
+                <ul className="space-y-1">
+                {allUsers.map(user => {
+                    const ids = [currentProfile.id, user.id].sort();
+                    const dmRoomId = `dm_${ids[0]}_${ids[1]}`;
+                    const isOnline = onlineUsers.some(ou => ou.id === user.id);
+                    
+                    return (
+                        <li key={user.id}>
+                            <button onClick={() => startDM(user.id)} className={`w-full flex items-center px-3 py-2 rounded-md ${currentRoom === dmRoomId ? 'bg-primary text-white' : 'hover:bg-gray-700 text-gray-300'}`}>
+                                <span className={`h-2 w-2 rounded-full mr-3 ${isOnline ? 'bg-green-400' : 'bg-gray-500'}`}></span>
+                                <span className="truncate">{user.username} {user.role === 'Client' && <span className="text-xs text-gray-400 ml-1">(Client)</span>}</span>
+                            </button>
+                        </li>
+                    );
+                })}
                 </ul>
             </div>
         )}
-        
-        <div className="flex-1 overflow-y-auto p-4">
-            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Direct Messages</h2>
-            <ul className="space-y-1">
-            {allUsers.map(user => {
-                const ids = [currentProfile.id, user.id].sort();
-                const dmRoomId = `dm_${ids[0]}_${ids[1]}`;
-                const isOnline = onlineUsers.some(ou => ou.id === user.id);
-                
-                return (
-                    <li key={user.id}>
-                        <button onClick={() => startDM(user.id)} className={`w-full flex items-center px-3 py-2 rounded-md ${currentRoom === dmRoomId ? 'bg-primary text-white' : 'hover:bg-gray-700 text-gray-300'}`}>
-                            <span className={`h-2 w-2 rounded-full mr-3 ${isOnline ? 'bg-green-400' : 'bg-gray-500'}`}></span>
-                            <span className="truncate">{user.username} {user.role === 'Client' && <span className="text-xs text-gray-400 ml-1">(Client)</span>}</span>
-                        </button>
-                    </li>
-                );
-            })}
-            </ul>
-        </div>
       </div>
       
       {/* Chat Area */}

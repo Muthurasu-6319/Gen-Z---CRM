@@ -62,7 +62,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
     if (!user) return;
     setIsSaving(true);
     
-    const updatedProfileData = {
+    const selectedRoleObj = roles.find(r => r.name === role);
+    const updatedProfileData: any = {
       username: username,
       email: user.email,
       mobile: mobile,
@@ -75,6 +76,12 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
       total_pending: totalPending,
       services: selectedServices
     };
+
+    if (selectedRoleObj) {
+        updatedProfileData.permissions = selectedRoleObj.permissions;
+    } else if (role === 'Admin' || role === 'Client') {
+        updatedProfileData.permissions = null; // Clear if switching to base roles
+    }
 
     try {
       await api.put(`/api/users/${user.id}`, updatedProfileData);
@@ -139,6 +146,27 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
                   ))}
               </div>
           </div>
+        )}
+
+        {role !== 'Admin' && role !== 'Client' && roles.find(r => r.name === role) && (
+            <div className="bg-gray-50 p-4 rounded-md border border-gray-200 mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Permissions for {role}</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-gray-600">
+                    {Object.entries((roles.find(r => r.name === role) as any).permissions || {}).map(([page, actions]: any) => (
+                        <div key={page} className="border p-2 bg-white rounded">
+                            <div className="font-semibold text-primary capitalize mb-1 border-b pb-1">{page.replace('-', ' ')}</div>
+                            <div className="flex space-x-2 mt-1">
+                                {['view', 'create', 'edit', 'delete'].map(act => (
+                                    <span key={act} className={actions[act] ? 'text-green-600 font-bold' : 'text-gray-300 line-through'}>
+                                        {act.charAt(0).toUpperCase()}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2 italic">*Saving will apply these permissions.</p>
+            </div>
         )}
         <div className="flex justify-end space-x-3 pt-4">
           <button type="button" onClick={onClose} disabled={isSaving} className="px-4 py-2 text-sm bg-white border rounded-md">Cancel</button>

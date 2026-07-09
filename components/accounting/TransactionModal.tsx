@@ -21,7 +21,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
         const fetchStaff = async () => {
             try {
                 const data = await api.get('/api/users');
-                setStaffList(data.filter((u: any) => u.role === 'Staff' || u.role === 'Admin') as User[]);
+                setStaffList(data.filter((u: any) => u.role !== 'Client') as User[]);
             } catch (err) {
                 console.error("Error fetching staff:", err);
             }
@@ -56,12 +56,24 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, on
                 </div>
 
                 {type === 'Salary' ? (
-                    <SelectField name="related_profile_id" label="Staff Member" defaultValue={transactionToEdit?.related_profile_id || ''} required>
-                        <option value="" disabled>Select Staff</option>
-                        {staffList.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
-                    </SelectField>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SelectField name="related_profile_id" label="Staff Member (User)" defaultValue={transactionToEdit?.related_profile_id || ''}>
+                            <option value="">-- Optional User --</option>
+                            {staffList.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
+                        </SelectField>
+                        <InputField name="manual_name" label="Or Manual Name" defaultValue={transactionToEdit?.manual_name || ''} placeholder="Optional" />
+                    </div>
                 ) : (
-                    <InputField name="category" label={type === 'Income' ? 'Source' : 'Category'} defaultValue={transactionToEdit?.category || ''} required />
+                    <>
+                        <InputField name="category" label={type === 'Income' ? 'Source' : 'Category'} defaultValue={transactionToEdit?.category || ''} required />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <SelectField name="related_profile_id" label="Transaction By (User)" defaultValue={transactionToEdit?.related_profile_id || ''}>
+                                <option value="">-- Optional User --</option>
+                                {staffList.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
+                            </SelectField>
+                            <InputField name="manual_name" label="Or Manual Name" defaultValue={transactionToEdit?.manual_name || ''} placeholder="Optional" />
+                        </div>
+                    </>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

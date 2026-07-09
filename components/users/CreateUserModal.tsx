@@ -109,9 +109,13 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
         
         setIsSubmitting(true);
 
+        const selectedRoleObj = roles.find(r => r.name === role);
+        const permissionsToSave = selectedRoleObj ? selectedRoleObj.permissions : null;
+
         const newUser: any = {
             username, email, password, mobile, designation, address,
-            gpay, bankDetails, bloodGroup, role, services: selectedServices
+            gpay, bankDetails, bloodGroup, role, services: selectedServices,
+            permissions: permissionsToSave
         };
         
         onCreateUser(newUser);
@@ -175,6 +179,27 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
                                 </div>
                             ))}
                         </div>
+                    </div>
+                )}
+
+                {role !== 'Admin' && role !== 'Client' && roles.find(r => r.name === role) && (
+                    <div className="bg-gray-50 p-4 rounded-md border border-gray-200 mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Permissions for {role}</label>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs text-gray-600">
+                            {Object.entries((roles.find(r => r.name === role) as any).permissions || {}).map(([page, actions]: any) => (
+                                <div key={page} className="border p-2 bg-white rounded">
+                                    <div className="font-semibold text-blue-600 capitalize mb-1 border-b pb-1">{page.replace('-', ' ')}</div>
+                                    <div className="flex space-x-2 mt-1">
+                                        {['view', 'create', 'edit', 'delete'].map(act => (
+                                            <span key={act} className={actions[act] ? 'text-green-600 font-bold' : 'text-gray-300 line-through'}>
+                                                {act.charAt(0).toUpperCase()}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2 italic">*These permissions will be assigned to this user automatically.</p>
                     </div>
                 )}
 

@@ -148,7 +148,7 @@ const TicketsPage: React.FC<{ title: string }> = ({ title }) => {
     t.client_username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const staffUsers = users.filter(u => u.role === 'Admin' || u.role === 'Staff');
+  const staffUsers = users.filter(u => u.role !== 'Client');
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading Support Tickets...</div>;
 

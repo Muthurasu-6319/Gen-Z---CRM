@@ -34,7 +34,7 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, onSave, pr
     const fetchStaff = async () => {
       try {
         const data = await api.get('/api/users');
-        const staff = data.filter((u: any) => u.role === 'Staff' || u.role === 'Admin');
+        const staff = data.filter((u: any) => u.role !== 'Client');
         setStaffOptions(staff.map((s: any) => ({ value: s.id, label: s.username })));
       } catch (err) {
         console.error("Error fetching staff:", err);

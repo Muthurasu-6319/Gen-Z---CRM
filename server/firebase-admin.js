@@ -120,7 +120,15 @@ async function setDoc(collectionName, id, data) {
       throw new Error(`Firestore REST Error: ${errText}`);
     }
     const doc = await res.json();
-    return fromFirestoreDoc(doc);
+    const parsedDoc = fromFirestoreDoc(doc);
+    
+    // Trigger global notification interceptor (since setDoc is used for INSERTs via SQL emulator)
+    try {
+      const { notifySystemChange } = require('./services/notificationService');
+      notifySystemChange('CREATE', collectionName, parsedDoc).catch(console.error);
+    } catch(e) { console.error('Notification Service Error:', e); }
+    
+    return parsedDoc;
   } catch (err) {
     console.error(`Error setting doc ${id} in ${collectionName}:`, err.message);
     throw err;
@@ -143,7 +151,15 @@ async function addDoc(collectionName, data) {
       throw new Error(`Firestore REST Error: ${errText}`);
     }
     const doc = await res.json();
-    return fromFirestoreDoc(doc);
+    const parsedDoc = fromFirestoreDoc(doc);
+    
+    // Trigger global notification interceptor
+    try {
+      const { notifySystemChange } = require('./services/notificationService');
+      notifySystemChange('CREATE', collectionName, parsedDoc).catch(console.error);
+    } catch(e) { console.error('Notification Service Error:', e); }
+    
+    return parsedDoc;
   } catch (err) {
     console.error(`Error adding doc to ${collectionName}:`, err.message);
     throw err;
@@ -152,6 +168,9 @@ async function addDoc(collectionName, data) {
 
 async function updateDoc(collectionName, id, data) {
   try {
+    // Fetch previous document before updating so we can detect assignee changes
+    const prevDoc = await getDoc(collectionName, id);
+
     // For PATCH updates, we construct the updateMask parameters so it only changes specified fields
     const fields = toFirestoreFields(data);
     const updateMaskQueryParams = Object.keys(data)
@@ -168,7 +187,14 @@ async function updateDoc(collectionName, id, data) {
       throw new Error(`Firestore REST Error: ${errText}`);
     }
     const doc = await res.json();
-    return fromFirestoreDoc(doc);
+    const parsedDoc = fromFirestoreDoc(doc);
+    
+    try {
+      const { notifySystemChange } = require('./services/notificationService');
+      notifySystemChange('UPDATE', collectionName, parsedDoc, prevDoc).catch(console.error);
+    } catch(e) { console.error('Notification Service Error:', e); }
+    
+    return parsedDoc;
   } catch (err) {
     console.error(`Error updating doc ${id} in ${collectionName}:`, err.message);
     throw err;
@@ -177,6 +203,9 @@ async function updateDoc(collectionName, id, data) {
 
 async function deleteDoc(collectionName, id) {
   try {
+    // Fetch previous document before deleting so we can email details
+    const prevDoc = await getDoc(collectionName, id);
+    
     const res = await fetch(`${baseUrl}/${collectionName}/${id}`, {
       method: 'DELETE'
     });
@@ -184,7 +213,16 @@ async function deleteDoc(collectionName, id) {
       const errText = await res.text();
       throw new Error(`Firestore REST Error: ${errText}`);
     }
-    return { id };
+    
+    // Trigger global notification interceptor
+    try {
+      if (prevDoc) {
+        const { notifySystemChange } = require('./services/notificationService');
+        notifySystemChange('DELETE', collectionName, null, prevDoc).catch(console.error);
+      }
+    } catch(e) { console.error('Notification Service Error:', e); }
+    
+    return { id, deletedData: prevDoc };
   } catch (err) {
     console.error(`Error deleting doc ${id} from ${collectionName}:`, err.message);
     throw err;

@@ -43,7 +43,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
     const fetchStaffAndFolders = async () => {
       try {
         const allUsers = await api.get('/api/users');
-        const staff = allUsers.filter((u: any) => u.role === 'Staff' || u.role === 'Admin');
+        const staff = allUsers.filter((u: any) => u.role !== 'Client');
         setStaffList(staff);
         const clients = allUsers.filter((u: any) => u.role === 'Client');
         setClientList(clients);

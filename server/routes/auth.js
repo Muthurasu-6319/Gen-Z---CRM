@@ -3,7 +3,8 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
-const { findOne, getDoc } = require('../firebase-admin');
+const { findOne, getDoc, updateDoc } = require('../firebase-admin');
+const { createTransporter } = require('../mailer');
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -58,6 +59,63 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.json(safe);
   } catch (err) {
     console.error('Me error:', err.message);
+    res.status(500).json({ error: 'Server error: ' + err.message });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+  
+  try {
+    const user = await findOne('profiles', 'email', email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 15 * 60000).toISOString();
+    
+    await updateDoc('profiles', user.id, { otp, otpExpiry });
+    
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: email,
+      subject: 'Password Reset OTP',
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4f46e5;">Password Reset</h2>
+        <p>Your OTP for resetting your password is:</p>
+        <h3 style="background-color: #f3f4f6; padding: 10px; display: inline-block; letter-spacing: 2px;">${otp}</h3>
+        <p>This OTP is valid for 15 minutes. If you didn't request a password reset, please ignore this email.</p>
+      </div>`
+    });
+    
+    res.json({ message: 'OTP sent to email' });
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+    res.status(500).json({ error: 'Server error: ' + err.message });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) return res.status(400).json({ error: 'All fields required' });
+  
+  try {
+    const user = await findOne('profiles', 'email', email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    if (user.otp !== otp || new Date() > new Date(user.otpExpiry)) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+    
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await updateDoc('profiles', user.id, { password: hashed, otp: null, otpExpiry: null });
+    
+    res.json({ message: 'Password reset successful' });
+  } catch (err) {
+    console.error('Reset password error:', err.message);
     res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });

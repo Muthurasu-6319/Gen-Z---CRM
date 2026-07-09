@@ -28,6 +28,13 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
     const { currentProfile } = usePermissions();
     const [project, setProject] = useState<ProjectDetail | null>(null);
     const [loading, setLoading] = useState(true);
+    
+    // Redirect / Assign Modal States
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [selectedStaffId, setSelectedStaffId] = useState('');
+    const [assignAmount, setAssignAmount] = useState('');
+    const [isAssigning, setIsAssigning] = useState(false);
+    const [allStaff, setAllStaff] = useState<User[]>([]);
 
     const fetchProjectDetails = useCallback(async () => {
         if (!projectId) return;
@@ -57,15 +64,58 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
         }
     }, [projectId]);
 
+    const fetchAllStaff = useCallback(async () => {
+        try {
+            const staffData = await api.get('/api/users');
+            setAllStaff(staffData.filter((u: any) => u.role !== 'Client'));
+        } catch (err) {
+            console.error(err);
+        }
+    }, []);
+
     useEffect(() => {
         fetchProjectDetails();
-    }, [fetchProjectDetails]);
+        fetchAllStaff();
+    }, [fetchProjectDetails, fetchAllStaff]);
 
     if (loading) return <div className="p-8 text-center">Loading project details...</div>;
     if (!project) return <div className="p-8 text-center text-red-500">Project not found.</div>;
 
     const isAdmin = currentProfile?.role === 'Admin';
-    const myAmount = (currentProfile && project.assigned_amounts) ? project.assigned_amounts[currentProfile.id] : null;
+    const isAssignedToMe = currentProfile && project.assigned_to?.includes(currentProfile.id);
+    const myAmount = isAssignedToMe && project.assigned_amounts ? project.assigned_amounts[currentProfile.id] : null;
+
+    const handleAssignStaff = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedStaffId || !project || !currentProfile) return;
+        setIsAssigning(true);
+        try {
+            const newAssignedTo = [...(project.assigned_to || [])];
+            if (!newAssignedTo.includes(selectedStaffId)) {
+                newAssignedTo.push(selectedStaffId);
+            }
+            const newAmounts = { ...(project.assigned_amounts || {}) };
+            if (assignAmount) newAmounts[selectedStaffId] = Number(assignAmount);
+            
+            const newAssignedBy = { ...(project.assigned_by || {}) };
+            newAssignedBy[selectedStaffId] = currentProfile.username;
+
+            await api.put(`/api/projects/${project.id}`, {
+                ...project,
+                assigned_to: newAssignedTo,
+                assigned_amounts: newAmounts,
+                assigned_by: newAssignedBy
+            });
+            await fetchProjectDetails();
+            setIsAssignModalOpen(false);
+            setSelectedStaffId('');
+            setAssignAmount('');
+        } catch (err: any) {
+            alert('Failed to assign project: ' + err.message);
+        } finally {
+            setIsAssigning(false);
+        }
+    };
 
     return (
         <div>
@@ -183,7 +233,17 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                 </div>
 
                 <div className="mt-6 border-t pt-6">
-                    <h3 className="font-semibold text-gray-600 mb-2">Assigned Staff</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="font-semibold text-gray-600">Assigned Staff</h3>
+                        {(isAdmin || isAssignedToMe) && (
+                            <button 
+                                onClick={() => setIsAssignModalOpen(true)}
+                                className="text-sm bg-primary text-white px-3 py-1.5 rounded-md shadow hover:bg-primary-dark transition"
+                            >
+                                + Redirect / Assign Staff
+                            </button>
+                        )}
+                    </div>
                     <div className="flex flex-col space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                             {project.assigned_staff.filter(s => project.assigned_to?.includes(s.id)).map(staff => {
@@ -214,6 +274,61 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     </div>
                 </div>
             </div>
+
+            {/* Redirect / Assign Modal */}
+            {isAssignModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+                        <h2 className="text-xl font-bold mb-4">Redirect / Assign Project</h2>
+                        <form onSubmit={handleAssignStaff}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Select Developer / Staff</label>
+                                <select 
+                                    value={selectedStaffId} 
+                                    onChange={e => setSelectedStaffId(e.target.value)}
+                                    required
+                                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary p-2 border"
+                                >
+                                    <option value="">-- Select --</option>
+                                    {allStaff
+                                        .filter(s => s.id !== currentProfile?.id && !project.assigned_to?.includes(s.id))
+                                        .map(s => (
+                                            <option key={s.id} value={s.id}>{s.username} - {s.role}</option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Fix Amount / Rate (₹)</label>
+                                <input 
+                                    type="number"
+                                    value={assignAmount}
+                                    onChange={e => setAssignAmount(e.target.value)}
+                                    placeholder="e.g. 500"
+                                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary p-2 border"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">This will show that you assigned them this project with this rate.</p>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setIsAssignModalOpen(false)}
+                                    className="px-4 py-2 border rounded-md hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit"
+                                    disabled={isAssigning || !selectedStaffId}
+                                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark disabled:opacity-50"
+                                >
+                                    {isAssigning ? 'Assigning...' : 'Assign Project'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

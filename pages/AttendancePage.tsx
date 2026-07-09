@@ -50,7 +50,7 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ title, setActivePage })
             
             // Map profiles to summaries
             const summaries = profiles
-                .filter((u: any) => u.role === 'Staff' || u.role === 'Admin')
+                .filter((u: any) => u.role !== 'Client')
                 .map((u: any) => ({
                     profile_id: u.id,
                     username: u.username,

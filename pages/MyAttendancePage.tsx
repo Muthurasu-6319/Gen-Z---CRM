@@ -49,7 +49,7 @@ const MyAttendancePage: React.FC<{ title: string }> = ({ title }) => {
                                 <p>Status: <span className="font-semibold">{rec.status}</span></p>
                                 <p>Check In: {new Date(rec.check_in_time).toLocaleTimeString()}</p>
                                 <p>Check Out: {rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString() : 'Not yet'}</p>
-                                {rec.attendance_breaks.length > 0 && (
+                                {rec.attendance_breaks && rec.attendance_breaks.length > 0 && (
                                     <div className="mt-2">
                                         <p className="font-semibold">Breaks:</p>
                                         <ul className="list-disc list-inside">

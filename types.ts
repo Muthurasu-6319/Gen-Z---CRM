@@ -155,7 +155,7 @@ export interface User {
   username: string;
   email: string;
   password?: string;
-  role: 'Admin' | 'Staff' | 'Client';
+  role: 'Admin' | 'Staff' | 'Client' | string;
   mobile?: string;
   gpay?: string;
   bankDetails?: string;
