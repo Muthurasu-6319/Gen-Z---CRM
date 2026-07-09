@@ -3,6 +3,7 @@ const router = require('express').Router();
 const nodemailer = require('nodemailer');
 const auth = require('../middleware/auth');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../firebase-admin');
+const dns = require('dns');
 
 function createTransporter() {
   return nodemailer.createTransport({
@@ -16,7 +17,11 @@ function createTransporter() {
     tls: {
       rejectUnauthorized: false
     },
-    family: 4, // Force IPv4
+    lookup: (hostname, options, callback) => {
+      dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+        callback(err, address, family);
+      });
+    }
   });
 }
 
