@@ -16,7 +16,9 @@ function createTransporter() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    connectionTimeout: 10000, // 10 seconds timeout
+    // Explicitly force IPv4 network socket resolution
+    family: 4,
+    connectionTimeout: 10000,
     greetingTimeout: 5000,
     socketTimeout: 10000
   });
