@@ -56,6 +56,18 @@ app.use('/api/tickets',       require('./routes/tickets'));
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
+// ── Serve React Frontend (For Render/Production) ────────────────
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// Catch-all route for React Router (Must be after all API routes)
+app.get('*', (req, res) => {
+  if (req.originalUrl.startsWith('/api')) {
+    return res.status(404).json({ error: 'API route not found' });
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 // ── Socket.IO — Team Chat ─────────────────────────
 // Track online users: Map<socketId, { id, username }>
 const onlineUsers = new Map();
