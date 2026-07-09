@@ -1,6 +1,11 @@
-// server/mailer.js
 const nodemailer = require('nodemailer');
 const db = require('./db');
+const dns = require('dns');
+
+// Force IPv4 resolution first to prevent ENETUNREACH IPv6 errors on some servers
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 function createTransporter() {
   return nodemailer.createTransport({
