@@ -7,9 +7,28 @@ if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');
 }
 
-function createTransporter() {
+// Pre-resolve smtp.gmail.com to an IPv4 address so Nodemailer never
+// does its own DNS lookup (which returns IPv6 on Render/Node 24+).
+async function resolveSmtpHost(hostname) {
+  return new Promise((resolve) => {
+    dns.resolve4(hostname, (err, addresses) => {
+      if (err || !addresses || !addresses.length) {
+        console.warn('[mailer] dns.resolve4 failed, falling back to hostname:', err?.message);
+        resolve(hostname); // fallback
+      } else {
+        resolve(addresses[0]); // e.g. "142.251.163.108"
+      }
+    });
+  });
+}
+
+async function createTransporter() {
+  const smtpHost = 'smtp.gmail.com';
+  const resolvedIp = await resolveSmtpHost(smtpHost);
+  console.log(`[mailer] Resolved ${smtpHost} -> ${resolvedIp}`);
+
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
+    host: resolvedIp,
     port: 465,
     secure: true,
     auth: {
@@ -17,12 +36,8 @@ function createTransporter() {
       pass: process.env.SMTP_PASS,
     },
     tls: {
-      rejectUnauthorized: false
-    },
-    lookup: (hostname, options, callback) => {
-      dns.lookup(hostname, { family: 4 }, (err, address, family) => {
-        callback(err, address, family);
-      });
+      rejectUnauthorized: false,
+      servername: smtpHost // Required for SNI/TLS cert validation
     },
     connectionTimeout: 15000,
     greetingTimeout: 10000,

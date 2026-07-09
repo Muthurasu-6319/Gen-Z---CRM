@@ -77,7 +77,7 @@ router.post('/forgot-password', async (req, res) => {
     
     await updateDoc('profiles', user.id, { otp, otpExpiry });
     
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
     await transporter.sendMail({
       from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
       to: email,
