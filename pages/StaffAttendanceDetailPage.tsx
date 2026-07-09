@@ -115,7 +115,7 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
                                             <button onClick={() => handleDeleteEntry(entry.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Entry"><TrashIcon className="h-5 w-5"/></button>
                                         )}
                                     </div>
-                                    {entry.attendance_breaks.length > 0 && (
+                                    {entry.attendance_breaks && entry.attendance_breaks.length > 0 && (
                                         <div className="mt-2 pl-5 text-sm">
                                             <p className="font-semibold">Breaks:</p>
                                             <ul className="list-disc list-inside text-gray-600">

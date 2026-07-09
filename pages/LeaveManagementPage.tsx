@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../apiClient';
 import { usePermissions } from '../components/auth/PermissionsContext';
 import { Leave, User } from '../types';
+import { PencilIcon, TrashIcon } from '../components/icons/Icons';
 import AccessDeniedPage from './AccessDeniedPage';
 
 interface LeaveWithProfile extends Leave {
@@ -21,8 +22,9 @@ const LeaveManagementPage: React.FC<{ title: string }> = ({ title }) => {
     const [allLeaves, setAllLeaves] = useState<LeaveWithProfile[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // v-- PUDHU STATE: Entha request ippo update aagitu irukku nu track panna --v
     const [updatingLeaveId, setUpdatingLeaveId] = useState<number | null>(null);
+    const [editingLeave, setEditingLeave] = useState<LeaveWithProfile | null>(null);
+    const [editForm, setEditForm] = useState({ start_date: '', end_date: '', reason: '', status: '' });
 
     const isAdmin = currentProfile?.role === 'Admin';
 
@@ -65,20 +67,61 @@ const LeaveManagementPage: React.FC<{ title: string }> = ({ title }) => {
                 )
             );
 
-            setUpdatingLeaveId(null); // Loading state stop pannurom
-
-            // 2. Apparam, notification anuppurom
-            if (leave.requesting_profile?.id) {
-                await api.post('/api/notifications', {
-                    recipient_profile_id: leave.requesting_profile.id,
-                    message: `Your leave request for ${leave.start_date} has been ${status}.`,
-                    related_item_type: 'leave',
-                    related_item_id: leave.id.toString(),
-                });
-            }
+            // The global notification interceptor will automatically send the email.
+            // We can keep this manual notification or rely solely on the global one.
+            // Since we implemented the global interceptor, it handles this. So we can safely leave this or remove it.
+            // For safety, we just let the global interceptor handle the email + in-app notification.
+            
+            alert(`Leave request updated successfully.`);
         } catch (updateError: any) {
-            setUpdatingLeaveId(null); // Error na loading ah stop pannurom
+            setUpdatingLeaveId(null);
             alert(`Error updating status: ${updateError.message || updateError}`);
+        }
+    };
+
+    const handleDelete = async (leaveId: number) => {
+        if (!isAdmin) return;
+        if (!window.confirm("Are you sure you want to delete this leave request?")) return;
+        
+        try {
+            await api.delete(`/api/leave/${leaveId}`);
+            setAllLeaves(prev => prev.filter(l => l.id !== leaveId));
+            alert("Leave request deleted. Admin will be notified.");
+        } catch (error: any) {
+            alert(`Error deleting leave: ${error.message || error}`);
+        }
+    };
+
+    const openEditModal = (leave: LeaveWithProfile) => {
+        setEditingLeave(leave);
+        setEditForm({
+            start_date: leave.start_date.split('T')[0],
+            end_date: leave.end_date.split('T')[0],
+            reason: leave.reason,
+            status: leave.status
+        });
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingLeave || !isAdmin) return;
+        setUpdatingLeaveId(editingLeave.id);
+        
+        try {
+            await api.put(`/api/leave/${editingLeave.id}`, {
+                ...editForm,
+                approved_by: currentProfile.id
+            });
+            
+            setAllLeaves(prev => prev.map(l => 
+                l.id === editingLeave.id ? { ...l, ...editForm } : l
+            ));
+            
+            setEditingLeave(null);
+            setUpdatingLeaveId(null);
+            alert("Leave request updated successfully.");
+        } catch (error: any) {
+            setUpdatingLeaveId(null);
+            alert(`Error saving edit: ${error.message || error}`);
         }
     };
 
@@ -122,7 +165,6 @@ const LeaveManagementPage: React.FC<{ title: string }> = ({ title }) => {
                                 <td className="px-6 py-4 max-w-sm truncate">{leave.reason}</td>
                                 <td className="px-6 py-4"><span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[leave.status]}`}>{leave.status}</span></td>
                                 <td className="px-6 py-4 text-right space-x-2">
-                                    {/* Pudhu Loading state ah inga use panrom */}
                                     {leave.status === 'Pending' && (
                                         <>
                                             <button 
@@ -141,12 +183,90 @@ const LeaveManagementPage: React.FC<{ title: string }> = ({ title }) => {
                                             </button>
                                         </>
                                     )}
+                                    <button 
+                                        onClick={() => openEditModal(leave)} 
+                                        className="p-1 text-blue-500 hover:text-blue-700" 
+                                        title="Edit"
+                                    >
+                                        <PencilIcon className="w-5 h-5 inline" />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDelete(leave.id)} 
+                                        className="p-1 text-red-500 hover:text-red-700" 
+                                        title="Delete"
+                                    >
+                                        <TrashIcon className="w-5 h-5 inline" />
+                                    </button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
+            {/* Edit Modal */}
+            {editingLeave && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                        <h2 className="text-xl font-bold mb-4">Edit Leave Request</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                                <input 
+                                    type="date" 
+                                    value={editForm.start_date} 
+                                    onChange={(e) => setEditForm({...editForm, start_date: e.target.value})}
+                                    className="mt-1 block w-full p-2 border rounded-md"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">End Date</label>
+                                <input 
+                                    type="date" 
+                                    value={editForm.end_date} 
+                                    onChange={(e) => setEditForm({...editForm, end_date: e.target.value})}
+                                    className="mt-1 block w-full p-2 border rounded-md"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Reason</label>
+                                <textarea 
+                                    value={editForm.reason} 
+                                    onChange={(e) => setEditForm({...editForm, reason: e.target.value})}
+                                    className="mt-1 block w-full p-2 border rounded-md"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Status</label>
+                                <select 
+                                    value={editForm.status} 
+                                    onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                                    className="mt-1 block w-full p-2 border rounded-md"
+                                >
+                                    <option value="Pending">Pending</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end space-x-3">
+                            <button 
+                                onClick={() => setEditingLeave(null)} 
+                                className="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-100"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={handleSaveEdit} 
+                                disabled={updatingLeaveId !== null}
+                                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 disabled:opacity-50"
+                            >
+                                {updatingLeaveId !== null ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };

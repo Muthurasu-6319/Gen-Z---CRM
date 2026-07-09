@@ -71,6 +71,7 @@ const AccountingPage: React.FC<{ title: string }> = ({ title }) => {
                 amount: Number(formData.get('amount')),
                 description: formData.get('description'),
                 related_profile_id: formData.get('related_profile_id') || null,
+                manual_name: formData.get('manual_name') || null,
                 payment_mode: formData.get('payment_mode'),
             };
 
@@ -138,7 +139,8 @@ const AccountingPage: React.FC<{ title: string }> = ({ title }) => {
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category / To</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category / Source</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Person / By</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mode</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -156,7 +158,10 @@ const AccountingPage: React.FC<{ title: string }> = ({ title }) => {
                                             t.type === 'Expense' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
                                         }`}>{t.type}</span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm">{t.type === 'Salary' ? t.profile?.username : t.category}</td>
+                                    <td className="px-6 py-4 text-sm">{t.category || '-'}</td>
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                                        {t.profile?.username ? t.profile.username : (t.manual_name || '-')}
+                                    </td>
                                     <td className="px-6 py-4 text-sm">
                                         {t.payment_mode && (
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${paymentModeColors[t.payment_mode] || 'bg-gray-100 text-gray-800'}`}>

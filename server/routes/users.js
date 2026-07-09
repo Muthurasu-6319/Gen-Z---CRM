@@ -15,7 +15,7 @@ async function sendWelcomeEmail(user, rawPassword) {
   const transporter = createTransporter();
   
   let permissionsHtml = `<p><strong>Access Role:</strong> ${user.role}</p>`;
-  if (user.role === 'Staff' && user.permissions) {
+  if (user.role !== 'Client' && user.permissions) {
     const allowed = Object.keys(user.permissions).filter(p => user.permissions[p].view);
     if (allowed.length > 0) {
         const formatted = allowed.map(p => p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, ' ')).join(', ');

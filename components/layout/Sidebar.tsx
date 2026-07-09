@@ -79,26 +79,47 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activePage, setActivePage }) 
   const visibleItems = useMemo(() => {
     if (!currentProfile) return [];
     return sidebarItems.filter(item => {
-      const roleIsAllowed = item.roles.includes(currentProfile.role);
-      if (!roleIsAllowed) return false;
-
-      // Check if it's a client-specific service dashboard
+      // Admin sees everything except pure client portals
+      if (currentProfile.role === 'Admin') {
+         if (item.roles.length === 1 && item.roles[0] === 'Client') return false;
+         
+         if (searchTerm.trim() !== '' && !item.label.toLowerCase().includes(searchTerm.toLowerCase())) {
+           const childMatch = item.children?.some(c => c.label.toLowerCase().includes(searchTerm.toLowerCase()));
+           if (!childMatch) return false;
+         }
+         return true;
+      }
+      
+      // Client sees only things marked with 'Client', plus service checks
       if (currentProfile.role === 'Client') {
+         if (!item.roles.includes('Client')) return false;
          const services = currentProfile.services || [];
          if (item.id === 'web-dashboard' && !services.includes('Web Development')) return false;
          if (item.id === 'app-dashboard' && !services.includes('App Development')) return false;
          if (item.id === 'marketing-dashboard' && !services.includes('Digital Marketing')) return false;
          if (item.id === 'seo-dashboard' && !services.includes('SEO')) return false;
          if (item.id === 'software-dashboard' && !services.includes('Custom Software')) return false;
+         
+         if (!hasPermission(item.id, 'view')) return false;
+         
+         if (searchTerm.trim() !== '' && !item.label.toLowerCase().includes(searchTerm.toLowerCase())) {
+           const childMatch = item.children?.some(c => c.label.toLowerCase().includes(searchTerm.toLowerCase()));
+           if (!childMatch) return false;
+         }
+         return true;
       }
 
+      // For Staff & Custom Roles, check permissions entirely
+      if (item.roles.length === 1 && item.roles[0] === 'Client') return false; // Hide pure client portals
+      
       const hasViewPermission = hasPermission(item.id, 'view');
-      if (!hasViewPermission && currentProfile.role !== 'Client') return false; 
+      if (!hasViewPermission) return false;
+      
       if (searchTerm.trim() !== '' && !item.label.toLowerCase().includes(searchTerm.toLowerCase())) {
-        // Also check children
         const childMatch = item.children?.some(c => c.label.toLowerCase().includes(searchTerm.toLowerCase()));
         if (!childMatch) return false;
       }
+      
       return true;
     });
   }, [currentProfile, hasPermission, searchTerm]);

@@ -22,12 +22,12 @@ router.get('/', auth, async (req, res) => {
 });
 
 router.post('/', auth, async (req, res) => {
-  const { type, category, description, amount, date, payment_mode, related_profile_id } = req.body;
+  const { type, category, description, amount, date, payment_mode, related_profile_id, manual_name } = req.body;
   try {
     const [result] = await db.query(
-      `INSERT INTO transactions (type, category, description, amount, date, payment_mode, related_profile_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [type, category || null, description || null, amount, date || null, payment_mode || null, related_profile_id || null, req.user.id]
+      `INSERT INTO transactions (type, category, description, amount, date, payment_mode, related_profile_id, created_by, manual_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [type, category || null, description || null, amount, date || null, payment_mode || null, related_profile_id || null, req.user.id, manual_name || null]
     );
     const [rows] = await db.query(
       `SELECT t.*, p.username AS staff_username
@@ -49,11 +49,11 @@ router.post('/', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const { type, category, description, amount, date, payment_mode, related_profile_id } = req.body;
+  const { type, category, description, amount, date, payment_mode, related_profile_id, manual_name } = req.body;
   try {
     await db.query(
-      `UPDATE transactions SET type=?, category=?, description=?, amount=?, date=?, payment_mode=?, related_profile_id=? WHERE id=?`,
-      [type, category || null, description || null, amount, date || null, payment_mode || null, related_profile_id || null, req.params.id]
+      `UPDATE transactions SET type=?, category=?, description=?, amount=?, date=?, payment_mode=?, related_profile_id=?, manual_name=? WHERE id=?`,
+      [type, category || null, description || null, amount, date || null, payment_mode || null, related_profile_id || null, manual_name || null, req.params.id]
     );
     const [rows] = await db.query(
       `SELECT t.*, p.username AS staff_username

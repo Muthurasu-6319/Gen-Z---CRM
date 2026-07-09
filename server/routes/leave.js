@@ -40,12 +40,17 @@ router.post('/', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, async (req, res) => {
-  const { status, approved_by } = req.body;
+  const { status, approved_by, start_date, end_date, reason } = req.body;
   try {
-    const updated = await updateDoc('leaves', req.params.id, {
+    const updateData = {
       status,
       approved_by: approved_by || null
-    });
+    };
+    if (start_date) updateData.start_date = start_date;
+    if (end_date) updateData.end_date = end_date;
+    if (reason !== undefined) updateData.reason = reason;
+
+    const updated = await updateDoc('leaves', req.params.id, updateData);
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

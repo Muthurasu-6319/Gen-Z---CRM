@@ -52,15 +52,20 @@ export const PermissionsProvider: React.FC<{ children: ReactNode }> = ({ childre
     // For Staff, Clients and any Custom Roles
     if (!currentProfile.permissions) return false;
     
+    let perms = currentProfile.permissions as any;
+    if (typeof perms === 'string') {
+        try { perms = JSON.parse(perms); } catch (e) { return false; }
+    }
+    
     // Direct permission check
-    const directPerm = currentProfile.permissions[pageId as PageId];
-    if (directPerm) return directPerm[action] === true;
+    const directPerm = perms[pageId as PageId];
+    if (directPerm && (directPerm[action] === true || directPerm[action] === 'true' || directPerm[action] === 1)) return true;
     
     // Fall-through: check parent permission for child pages
     const parentId = PERMISSION_PARENT_MAP[pageId];
     if (parentId) {
-      const parentPerm = currentProfile.permissions[parentId as PageId];
-      if (parentPerm) return parentPerm[action] === true;
+      const parentPerm = perms[parentId as PageId];
+      if (parentPerm && (parentPerm[action] === true || parentPerm[action] === 'true' || parentPerm[action] === 1)) return true;
     }
     return false;
   }, [currentProfile]);
