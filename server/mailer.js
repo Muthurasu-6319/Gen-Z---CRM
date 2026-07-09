@@ -9,12 +9,17 @@ if (dns.setDefaultResultOrder) {
 
 function createTransporter() {
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
-    // Prevent indefinite hanging
+    tls: {
+      rejectUnauthorized: false
+    },
+    family: 4, // Force IPv4 to prevent ENETUNREACH on Render
     connectionTimeout: 15000,
     greetingTimeout: 10000,
     socketTimeout: 15000
