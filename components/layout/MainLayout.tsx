@@ -32,6 +32,7 @@ import QuotesPage from '../../pages/QuotesPage';
 import LeaveManagementPage from '../../pages/LeaveManagementPage';
 import MyLeaveRequestsPage from '../../pages/MyLeaveRequestsPage'; 
 import ReportsPage from '../../pages/ReportsPage';
+import BackupDatabasePage from '../../pages/BackupDatabasePage';
 import StaffReportsAdminPage from '../../pages/StaffReportsAdminPage';
 import MeetingsPage from '../../pages/MeetingsPage';
 import ProjectDetailPage from '../../pages/ProjectDetailPage'; 
@@ -69,7 +70,7 @@ const pages: { [key: string]: React.ComponentType<any> } = {
   'team-chat': TeamChatPage,
   'support-ticket': TicketsPage,
   settings: SettingsPage,
-  'backup-database': PlaceholderPage,
+  'backup-database': BackupDatabasePage,
   'project-detail': ProjectDetailPage,
   'staff-attendance-detail': StaffAttendanceDetailPage,
   'user-notes': UserNotesPage,

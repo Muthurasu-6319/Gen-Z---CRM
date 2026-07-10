@@ -43,6 +43,7 @@ app.use('/api/attendance',    require('./routes/attendance'));
 app.use('/api/leave',         require('./routes/leave'));
 app.use('/api/client-reports', require('./routes/client-reports'));
 app.use('/api/meetings',      require('./routes/meetings'));
+app.use('/api/backup', require('./routes/backup'));
 app.use('/api/reports',       require('./routes/reports'));
 app.use('/api/messages',      require('./routes/messages'));
 app.use('/api/files',         require('./routes/files'));
