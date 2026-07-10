@@ -247,7 +247,7 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
                    </div>
             )}
 
-            <header className="flex-shrink-0 flex justify-between items-center mb-4">
+            <header className="flex-shrink-0 flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-text-primary">{title}</h1>
                     <div className="text-sm text-gray-500 mt-1">
@@ -257,8 +257,8 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
                         ))}
                     </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <input type="search" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="px-3 py-1.5 border rounded-md shadow-sm focus:ring-primary focus:border-primary"/>
+                <div className="flex flex-wrap items-center gap-2">
+                    <input type="search" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="px-3 py-1.5 border rounded-md shadow-sm focus:ring-primary focus:border-primary w-full sm:w-auto"/>
                     <div className="flex bg-gray-200 rounded-md p-0.5">
                         <button onClick={() => setView('grid')} className={`p-1.5 rounded-md ${view === 'grid' ? 'bg-white shadow-sm' : ''}`}><CubeIcon className="h-5 w-5"/></button>
                         <button onClick={() => setView('list')} className={`p-1.5 rounded-md ${view === 'list' ? 'bg-white shadow-sm' : ''}`}><MenuIcon className="h-5 w-5"/></button>
@@ -266,7 +266,7 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
                     {canCreate && (
                         <>
                             <button onClick={() => handleCopyFolderLink()} title="Copy Current Folder Link" className="p-2 bg-white border rounded-md hover:bg-gray-50 text-indigo-600 font-medium text-xs flex items-center gap-1">
-                                <LinkIcon className="h-4 w-4" /> Copy Folder Link
+                                <LinkIcon className="h-4 w-4" /> <span className="hidden sm:inline">Copy Folder Link</span>
                             </button>
                             <button onClick={() => setIsFolderModalOpen(true)} title="New Folder" className="p-2 bg-white border rounded-md hover:bg-gray-50"><FolderIcon className="h-5 w-5"/></button>
                             <button onClick={() => setIsLinkModalOpen(true)} title="Import Link from URL" className="p-2 bg-white border rounded-md hover:bg-gray-50"><LinkIcon className="h-5 w-5"/></button>
@@ -278,6 +278,7 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
                     )}
                 </div>
             </header>
+
             
             <main className="flex-1 bg-white p-4 rounded-lg shadow-md overflow-y-auto">
                     {!filteredItems.length ? (
