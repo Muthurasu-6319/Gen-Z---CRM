@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePermissions } from '../components/auth/PermissionsContext';
-import { api } from '../apiClient';
+import { api, uploadFile, API_BASE } from '../apiClient';
+import { CameraIcon } from '../components/icons/Icons';
 
 const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => {
     const { currentProfile, refetchProfile } = usePermissions();
@@ -14,7 +15,9 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
         bloodGroup: currentProfile?.bloodGroup || currentProfile?.blood_group || '',
         address: currentProfile?.address || ''
     });
+    const [profilePicUrl, setProfilePicUrl] = useState(currentProfile?.profile_picture || '');
     const [loading, setLoading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
     if (!currentProfile) {
@@ -25,11 +28,12 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSave = async () => {
+    const handleSave = async (overrideData?: any) => {
         setLoading(true);
         setMessage({ type: '', text: '' });
         try {
-            await api.put(`/api/users/${currentProfile.id}`, formData);
+            const dataToSave = overrideData || { ...formData, profile_picture: profilePicUrl };
+            await api.put(`/api/users/${currentProfile.id}`, dataToSave);
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
             setIsEditing(false);
             refetchProfile();
@@ -37,6 +41,29 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
             setMessage({ type: 'error', text: error.message || 'Failed to update profile' });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        
+        setUploadingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder', 'profiles');
+            
+            const uploaded = await uploadFile('/api/files/upload', formData);
+            if (uploaded && uploaded.name) {
+                const url = uploaded.name; 
+                setProfilePicUrl(url);
+                await handleSave({ profile_picture: url });
+            }
+        } catch (error: any) {
+            setMessage({ type: 'error', text: 'Failed to upload image: ' + error.message });
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -66,8 +93,22 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
 
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex items-center space-x-6 bg-gray-50">
-                    <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-3xl font-bold border-4 border-white shadow-sm">
-                        {currentProfile.username.charAt(0).toUpperCase()}
+                    <div className="relative group">
+                        <div className="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-500 text-3xl font-bold border-4 border-white shadow-sm overflow-hidden">
+                            {profilePicUrl ? (
+                                <img src={profilePicUrl.startsWith('http') ? profilePicUrl : `${API_BASE}/uploads/${profilePicUrl}`} alt="Profile" className="w-full h-full object-cover" />
+                            ) : (
+                                currentProfile.username.charAt(0).toUpperCase()
+                            )}
+                        </div>
+                        <label className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                            {uploadingImage ? (
+                                <span className="text-xs font-semibold">Uploading...</span>
+                            ) : (
+                                <CameraIcon className="w-8 h-8" />
+                            )}
+                            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploadingImage} />
+                        </label>
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900">{currentProfile.username}</h2>

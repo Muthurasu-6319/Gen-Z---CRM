@@ -168,6 +168,7 @@ export interface User {
   total_paid?: number;
   total_pending?: number;
   services?: string[];
+  profile_picture?: string;
  }
 
 
