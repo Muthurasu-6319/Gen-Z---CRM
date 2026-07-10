@@ -39,14 +39,18 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
   useEffect(() => {
       if (currentProfile) {
           if (!isStaff) {
-              // Client's default room should be a DM with the Admin, but we need the Admin's ID.
-              // We'll set it after fetching users.
               setCurrentRoom(''); 
           } else {
-              setCurrentRoom('staff_group');
+              if (hasPermission('chat-staff', 'view') || hasPermission('team-chat', 'view')) {
+                  setCurrentRoom('staff_group');
+              } else if (hasPermission('chat-client', 'view')) {
+                  setCurrentRoom('client_group');
+              } else {
+                  setCurrentRoom('');
+              }
           }
       }
-  }, [currentProfile, isStaff]);
+  }, [currentProfile, isStaff, hasPermission]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
