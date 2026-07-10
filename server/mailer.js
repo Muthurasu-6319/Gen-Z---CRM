@@ -16,9 +16,14 @@ function getResendClient() {
   return resendClient;
 }
 
-// Safe from address — always plain email, no angle brackets in env
+// Safe from address
 function getFromAddress() {
   return process.env.RESEND_FROM || 'onboarding@resend.dev';
+}
+
+// Reply-to address (Gmail)
+function getReplyTo() {
+  return process.env.RESEND_REPLY_TO || null;
 }
 
 // Compatibility shim: createTransporter() returns a Resend-backed sendMail object
@@ -30,12 +35,15 @@ async function createTransporter() {
         console.warn('[mailer] Skipping email — RESEND_API_KEY not configured.');
         return;
       }
-      const { data, error } = await resend.emails.send({
+      const payload = {
         from: from || getFromAddress(),
         to: Array.isArray(to) ? to : [to],
         subject,
         html
-      });
+      };
+      const replyTo = getReplyTo();
+      if (replyTo) payload.reply_to = replyTo;
+      const { data, error } = await resend.emails.send(payload);
       if (error) throw new Error(error.message);
       console.log(`[mailer] Email sent via Resend. ID: ${data?.id}`);
       return data;
@@ -74,12 +82,15 @@ async function sendAssignmentEmail(userEmail, username, itemType, itemTitle, des
   `;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const payload = {
       from: getFromAddress(),
       to: [userEmail],
       subject: `New Assignment: ${itemTitle}`,
       html
-    });
+    };
+    const replyTo = getReplyTo();
+    if (replyTo) payload.reply_to = replyTo;
+    const { data, error } = await resend.emails.send(payload);
     if (error) throw new Error(error.message);
     console.log(`[mailer] Assignment email sent to ${userEmail}. ID: ${data?.id}`);
   } catch (e) {
