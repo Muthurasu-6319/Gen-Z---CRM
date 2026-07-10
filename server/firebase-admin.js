@@ -98,7 +98,7 @@ async function getCollection(collectionName) {
       throw new Error(`Firestore REST Error: ${errText}`);
     }
     const data = await res.json();
-    return (data.documents || []).map(fromFirestoreDoc);
+    return (data.documents || []).map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
     console.error(`Error listing collection ${collectionName}:`, err.message);
     return [];
@@ -249,7 +249,7 @@ async function deleteDoc(collectionName, id) {
 async function findOne(collectionName, field, value) {
   try {
     const docs = await getCollection(collectionName);
-    return docs.find(doc => doc[field] === value) || null;
+    return docs.find(doc => doc && doc[field] === value) || null;
   } catch (err) {
     console.error(`Error in findOne on ${collectionName}:`, err.message);
     return null;
