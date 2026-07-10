@@ -101,6 +101,22 @@ async function getCollection(collectionName) {
     return (data.documents || []).map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
     console.error(`Error listing collection ${collectionName}:`, err.message);
+    
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const fallbackPath = path.join(__dirname, 'db_fallback.json');
+      if (fs.existsSync(fallbackPath)) {
+        const fallbackData = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
+        if (fallbackData[collectionName]) {
+          console.log(`Using local JSON fallback data for ${collectionName}`);
+          return fallbackData[collectionName];
+        }
+      }
+    } catch(e) {
+      console.error('Local JSON fallback failed:', e.message);
+    }
+
     return [];
   }
 }
@@ -117,11 +133,34 @@ async function getDoc(collectionName, id) {
     return fromFirestoreDoc(doc);
   } catch (err) {
     console.error(`Error getting doc ${id} from ${collectionName}:`, err.message);
+    
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const fallbackPath = path.join(__dirname, 'db_fallback.json');
+      if (fs.existsSync(fallbackPath)) {
+        const fallbackData = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
+        if (fallbackData[collectionName]) {
+          const doc = fallbackData[collectionName].find(d => String(d.id) === String(id));
+          if (doc) {
+            console.log(`Using local JSON fallback data for ${collectionName}/${id}`);
+            return doc;
+          }
+        }
+      }
+    } catch(e) {
+      console.error('Local JSON fallback failed:', e.message);
+    }
+
     return null;
   }
 }
 
 async function setDoc(collectionName, id, data) {
+  if (collectionName === 'notifications' || collectionName === 'mails') {
+    console.log(`[Bypass] Skipping DB save for ${collectionName}`);
+    return { id, ...data };
+  }
   try {
     const fields = toFirestoreFields({
       ...data,
@@ -153,6 +192,10 @@ async function setDoc(collectionName, id, data) {
 }
 
 async function addDoc(collectionName, data) {
+  if (collectionName === 'notifications' || collectionName === 'mails') {
+    console.log(`[Bypass] Skipping DB save for ${collectionName}`);
+    return { id: Math.random().toString(36).substring(2, 9), ...data };
+  }
   try {
     const fields = toFirestoreFields({
       ...data,
@@ -184,6 +227,10 @@ async function addDoc(collectionName, data) {
 }
 
 async function updateDoc(collectionName, id, data) {
+  if (collectionName === 'notifications' || collectionName === 'mails') {
+    console.log(`[Bypass] Skipping DB save for ${collectionName}`);
+    return { id, ...data };
+  }
   try {
     // Fetch previous document before updating so we can detect assignee changes
     const prevDoc = await getDoc(collectionName, id);
