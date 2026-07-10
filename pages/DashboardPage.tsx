@@ -1,7 +1,9 @@
 // src/pages/DashboardPage.tsx
 
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { api } from '../apiClient';
+import { api, getStoredToken, API_BASE } from '../apiClient';
+import { io, Socket } from 'socket.io-client';
+import { usePermissions } from '../components/auth/PermissionsContext';
 import { UsersIcon, BriefcaseIcon, ClipboardListIcon, CubeIcon, ArrowUpIcon, ArrowDownIcon } from '../components/icons/Icons';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import { Notification } from '../types'; // Assuming you have this type
@@ -21,9 +23,29 @@ const initialStats = {
 };
 
 const DashboardPage: React.FC<DashboardPageProps> = ({ title }) => {
+  const { currentProfile } = usePermissions();
+  const isAdmin = currentProfile?.role === 'Admin';
   const [stats, setStats] = useState(initialStats);
   const [activities, setActivities] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      const token = getStoredToken();
+      const socket = io(API_BASE, { auth: { token } });
+      
+      socket.on('presence_update', (users: any[]) => {
+        // Filter out unique users by ID in case of multiple tabs
+        const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
+        setOnlineUsers(uniqueUsers);
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [isAdmin]);
 
   // v-- ITHU THAAN PUDHU DATA FETCHING LOGIC --v
   useEffect(() => {
@@ -89,6 +111,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ title }) => {
                 }
             </ul>
         </div>
+        
+        {isAdmin && (
+          <div className="bg-card-bg p-6 rounded-lg shadow-md lg:col-span-1">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Online Users</h2>
+                <div className="flex items-center">
+                  <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse mr-2"></span>
+                  <span className="text-sm font-bold text-green-600">{onlineUsers.length} Active</span>
+                </div>
+              </div>
+              <ul className="space-y-4">
+                  {onlineUsers.length === 0 ? <p className="text-sm text-gray-500">No users currently online.</p> :
+                   onlineUsers.map((user, idx) => (
+                      <li key={idx} className="flex items-center p-2 rounded hover:bg-gray-50 transition-colors">
+                          <div className="bg-green-100 text-green-700 rounded-full h-8 w-8 flex items-center justify-center font-bold text-sm mr-3 uppercase">
+                              {user.username.charAt(0)}
+                          </div>
+                          <div className="flex-1">
+                              <p className="text-sm font-semibold text-gray-800">{user.username}</p>
+                              <p className="text-xs text-green-600">Online</p>
+                          </div>
+                      </li>
+                   ))
+                  }
+              </ul>
+          </div>
+        )}
       </div>
     </div>
   );
