@@ -5,18 +5,35 @@ const auth = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
   try {
-    const [rows] = await db.query(
-      `SELECT t.*, p.username AS staff_username
-       FROM transactions t
-       LEFT JOIN profiles p ON t.related_profile_id = p.id
-       ORDER BY t.date DESC, t.created_at DESC`
-    );
-    const mapped = rows.map(r => ({
-      ...r,
-      transaction_date: r.date,
-      amount: Number(r.amount),
-      profile: r.staff_username ? { username: r.staff_username } : null
-    }));
+    const [rows] = await db.query('SELECT * FROM transactions');
+    
+    const { getDb } = require('../firebase-admin');
+    const firestore = getDb();
+    let profiles = {};
+    if (firestore) {
+      const snap = await firestore.collection('profiles').get();
+      snap.docs.forEach(doc => {
+         profiles[doc.id] = doc.data();
+      });
+    }
+
+    let filteredRows = rows;
+    if (req.user.role !== 'Admin') {
+       filteredRows = rows.filter(r => r.related_profile_id === req.user.id);
+    }
+
+    const mapped = filteredRows.map(r => {
+      const p = profiles[r.related_profile_id];
+      return {
+        ...r,
+        transaction_date: r.date,
+        amount: Number(r.amount),
+        profile: p ? { username: p.username } : null
+      };
+    });
+    
+    mapped.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()).reverse();
+    
     res.json(mapped);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

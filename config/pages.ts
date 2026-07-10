@@ -19,6 +19,7 @@ export interface PageConfig {
 export const ALL_PAGES: PageConfig[] = [
   // ── Dashboard ───────────────────────────────────────────────────────────
   { id: 'dashboard',        label: 'Dashboard',              group: 'General' },
+  { id: 'profile',          label: 'My Profile',             group: 'General' },
 
   // ── Mail Box ────────────────────────────────────────────────────────────
   { id: 'mailbox',          label: 'Mail Box → Compose',     group: 'Mail' },

@@ -4,6 +4,7 @@ import React, { useState, useCallback } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import DashboardPage from '../../pages/DashboardPage';
+import ProfilePage from '../../pages/ProfilePage';
 import PlaceholderPage from '../../pages/PlaceholderPage';
 import TasksPage from '../../pages/TasksPage';
 import LeadsPage from '../../pages/LeadsPage';
@@ -43,6 +44,7 @@ import ClientReportsPage from '../../pages/ClientReportsPage';
 import TicketsPage from '../../pages/TicketsPage';
 const pages: { [key: string]: React.ComponentType<any> } = {
   dashboard: DashboardPage,
+  profile: ProfilePage,
   mailbox: MailboxPage,
   'mailbox-inbox': (props: any) => <MailboxPage {...props} defaultTab="inbox" />,
   'mail-templates': MailTemplatePage,
@@ -81,6 +83,7 @@ const pages: { [key: string]: React.ComponentType<any> } = {
 
 const pageTitles: { [key: string]: string } = {
     dashboard: 'Dashboard',
+    profile: 'My Profile',
     mailbox: 'Mail Box',
     'mailbox-inbox': 'Inbox',
     'mail-templates': 'Mail Templates',
