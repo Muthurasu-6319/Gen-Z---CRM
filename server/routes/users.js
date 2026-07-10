@@ -3,7 +3,6 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne, setDoc } = require('../firebase-admin');
-
 const { createTransporter } = require('../mailer');
 
 async function sendWelcomeEmail(user, rawPassword) {

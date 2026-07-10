@@ -5,10 +5,11 @@ require('dotenv').config();
 // Helper to send email safely
 async function sendNotification(toEmail, subject, html) {
   if (!toEmail || toEmail === 'admin-env') return;
+  if (!process.env.RESEND_API_KEY) return;
   try {
     const transporter = await createTransporter();
     await transporter.sendMail({
-      from: `"Gen Z CRM" <${process.env.SMTP_USER}>`,
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
       to: toEmail,
       subject,
       html
