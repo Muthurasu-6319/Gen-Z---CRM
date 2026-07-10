@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePermissions } from '../components/auth/PermissionsContext';
 import { api, uploadFile, API_BASE } from '../apiClient';
 import { CameraIcon } from '../components/icons/Icons';
