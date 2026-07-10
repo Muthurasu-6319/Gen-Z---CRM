@@ -15,7 +15,20 @@ router.get('/', auth, async (req, res) => {
       return { ...a, username: p ? p.username : 'Unknown' };
     });
 
-    if (req.user.role === 'Admin') {
+    const userProfile = profiles.find(pr => pr.id === req.user.id);
+    let hasAllAccess = req.user.role === 'Admin';
+    
+    if (!hasAllAccess && userProfile && userProfile.permissions) {
+       let perms = userProfile.permissions;
+       if (typeof perms === 'string') {
+           try { perms = JSON.parse(perms); } catch (e) {}
+       }
+       if (perms && perms['attendance'] && (perms['attendance'].view === true || perms['attendance'].view === 'true' || perms['attendance'].view === 1)) {
+           hasAllAccess = true;
+       }
+    }
+
+    if (hasAllAccess) {
       enriched.sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return new Date(b.check_in_time).getTime() - new Date(a.check_in_time).getTime();
@@ -119,8 +132,24 @@ router.post('/break/end/:breakId', auth, async (req, res) => {
 });
 
 router.delete('/:id', auth, async (req, res) => {
-  if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
   try {
+    let hasDeleteAccess = req.user.role === 'Admin';
+    if (!hasDeleteAccess) {
+        const profiles = await getCollection('profiles');
+        const userProfile = profiles.find(pr => pr.id === req.user.id);
+        if (userProfile && userProfile.permissions) {
+           let perms = userProfile.permissions;
+           if (typeof perms === 'string') {
+               try { perms = JSON.parse(perms); } catch (e) {}
+           }
+           if (perms && perms['attendance'] && (perms['attendance'].delete === true || perms['attendance'].delete === 'true' || perms['attendance'].delete === 1)) {
+               hasDeleteAccess = true;
+           }
+        }
+    }
+    
+    if (!hasDeleteAccess) return res.status(403).json({ error: 'Permission denied' });
+    
     await deleteDoc('attendance', req.params.id);
     res.json({ message: 'Attendance entry deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
