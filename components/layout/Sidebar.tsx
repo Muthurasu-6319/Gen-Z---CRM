@@ -21,6 +21,7 @@ export interface SidebarItem {
 
 export const sidebarItems: SidebarItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Icons.DashboardIcon, roles: ['Admin', 'Staff', 'Client'] },
+  { id: 'profile', label: 'My Profile', icon: Icons.UserCircleIcon, roles: ['Admin', 'Staff', 'Client', 'Custom'] },
   { id: 'web-dashboard', label: 'Web Dev Portal', icon: Icons.GlobeAltIcon, roles: ['Client'] },
   { id: 'app-dashboard', label: 'App Dev Portal', icon: Icons.DeviceMobileIcon, roles: ['Client'] },
   { id: 'marketing-dashboard', label: 'Marketing Portal', icon: Icons.SpeakerphoneIcon, roles: ['Client'] },
