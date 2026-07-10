@@ -2,6 +2,23 @@
 const projectId = "genzcrm";
 const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 
+// Fetch with timeout to prevent server hangs on Firestore connection issues
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      throw new Error(`Firestore request timed out after ${timeoutMs}ms. Check Firebase project "${projectId}" and Firestore security rules.`);
+    }
+    throw err;
+  }
+}
+
 // Helper: Convert Firestore value to standard JS value
 function fromFirestoreVal(valObj) {
   if (!valObj) return null;
@@ -74,7 +91,7 @@ function toFirestoreFields(obj) {
 
 async function getCollection(collectionName) {
   try {
-    const res = await fetch(`${baseUrl}/${collectionName}?pageSize=300`);
+    const res = await fetchWithTimeout(`${baseUrl}/${collectionName}?pageSize=300`);
     if (!res.ok) {
       if (res.status === 404) return [];
       const errText = await res.text();
@@ -90,7 +107,7 @@ async function getCollection(collectionName) {
 
 async function getDoc(collectionName, id) {
   try {
-    const res = await fetch(`${baseUrl}/${collectionName}/${id}`);
+    const res = await fetchWithTimeout(`${baseUrl}/${collectionName}/${id}`);
     if (!res.ok) {
       if (res.status === 404) return null;
       const errText = await res.text();
@@ -110,7 +127,7 @@ async function setDoc(collectionName, id, data) {
       ...data,
       created_at: data.created_at || new Date().toISOString()
     });
-    const res = await fetch(`${baseUrl}/${collectionName}/${id}`, {
+    const res = await fetchWithTimeout(`${baseUrl}/${collectionName}/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields })
@@ -141,7 +158,7 @@ async function addDoc(collectionName, data) {
       ...data,
       created_at: data.created_at || new Date().toISOString()
     });
-    const res = await fetch(`${baseUrl}/${collectionName}`, {
+    const res = await fetchWithTimeout(`${baseUrl}/${collectionName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields })
@@ -177,7 +194,7 @@ async function updateDoc(collectionName, id, data) {
       .map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
       .join('&');
 
-    const res = await fetch(`${baseUrl}/${collectionName}/${id}?${updateMaskQueryParams}`, {
+    const res = await fetchWithTimeout(`${baseUrl}/${collectionName}/${id}?${updateMaskQueryParams}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fields })
@@ -206,7 +223,7 @@ async function deleteDoc(collectionName, id) {
     // Fetch previous document before deleting so we can email details
     const prevDoc = await getDoc(collectionName, id);
     
-    const res = await fetch(`${baseUrl}/${collectionName}/${id}`, {
+    const res = await fetchWithTimeout(`${baseUrl}/${collectionName}/${id}`, {
       method: 'DELETE'
     });
     if (!res.ok) {
