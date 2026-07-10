@@ -1,28 +1,16 @@
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
+const { createTransporter } = require('./mailer');
 const { getCollection, getDoc } = require('./firebase-admin');
-
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
 
 function initCronJobs() {
   // Run everyday at 8:00 AM
   cron.schedule('0 8 * * *', async () => {
     console.log('Running daily reminder cron job...');
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.log('SMTP not configured, skipping reminders.');
+    if (!process.env.RESEND_API_KEY) {
+      console.log('Resend not configured, skipping reminders.');
       return;
     }
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
     const now = new Date();
     // One day from now
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -52,7 +40,7 @@ function initCronJobs() {
                 </div>
               `;
               await transporter.sendMail({
-                from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+                from: process.env.RESEND_FROM || 'onboarding@resend.dev',
                 to: user.email,
                 subject: `Reminder: ${event.title} is tomorrow`,
                 html
@@ -85,7 +73,7 @@ function initCronJobs() {
                 </div>
               `;
               await transporter.sendMail({
-                from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+                from: process.env.RESEND_FROM || 'onboarding@resend.dev',
                 to: user.email,
                 subject: `Reminder: Meeting "${meeting.title}" is tomorrow`,
                 html

@@ -1,29 +1,8 @@
 // server/routes/projects.js — Firebase Firestore version
 const router = require('express').Router();
-const nodemailer = require('nodemailer');
 const auth = require('../middleware/auth');
+const { createTransporter } = require('../mailer');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../firebase-admin');
-const dns = require('dns');
-
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false
-    },
-    lookup: (hostname, options, callback) => {
-      dns.lookup(hostname, { family: 4 }, (err, address, family) => {
-        callback(err, address, family);
-      });
-    }
-  });
-}
 
 router.get('/', auth, async (req, res) => {
   try {
@@ -127,9 +106,9 @@ router.delete('/:id', auth, async (req, res) => {
 
 // Helper function to send email notification to assigned users
 async function notifyAssignedUsers(userIds, project, oldProject) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+  if (!process.env.RESEND_API_KEY) return;
 
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   
   for (const userId of userIds) {
     try {
@@ -167,7 +146,7 @@ async function notifyAssignedUsers(userIds, project, oldProject) {
       `;
 
       await transporter.sendMail({
-        from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        from: process.env.RESEND_FROM || 'onboarding@resend.dev',
         to: user.email,
         subject: `You have been assigned to project: ${project.name}`,
         html,

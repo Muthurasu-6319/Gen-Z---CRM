@@ -1,21 +1,8 @@
 // server/routes/mailbox.js — Firebase Firestore version
 const router = require('express').Router();
-const nodemailer = require('nodemailer');
 const auth = require('../middleware/auth');
+const { createTransporter } = require('../mailer');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, admin } = require('../firebase-admin');
-
-// Helper: create nodemailer transporter from env
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
 
 // GET /api/mailbox — list mails for current user
 router.get('/', auth, async (req, res) => {
@@ -166,17 +153,17 @@ router.post('/send', auth, async (req, res) => {
       }
     }
 
-    // 4. Send via SMTP if configured
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      const transporter = createTransporter();
+    // 4. Send via Resend if configured
+    if (process.env.RESEND_API_KEY) {
+      const transporter = await createTransporter();
       await transporter.sendMail({
-        from: `"GENZ Team" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+        from: process.env.RESEND_FROM || 'onboarding@resend.dev',
         to,
         subject,
         html,
       });
     } else {
-      console.warn('SMTP not configured — email logged to DB only.');
+      console.warn('Resend not configured — email logged to DB only.');
     }
 
     res.json({ message: 'Email sent successfully' });

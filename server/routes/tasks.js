@@ -1,20 +1,8 @@
 // server/routes/tasks.js
 const router = require('express').Router();
-const nodemailer = require('nodemailer');
 const auth = require('../middleware/auth');
+const { createTransporter } = require('../mailer');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../firebase-admin');
-
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-}
 
 router.get('/', auth, async (req, res) => {
   try {
@@ -96,8 +84,8 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 async function notifyAssignee(userId, task) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
-  const transporter = createTransporter();
+  if (!process.env.RESEND_API_KEY) return;
+  const transporter = await createTransporter();
   try {
     const user = await getDoc('profiles', userId);
     if (!user || !user.email) return;
@@ -117,7 +105,7 @@ async function notifyAssignee(userId, task) {
     `;
 
     await transporter.sendMail({
-      from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
       to: user.email,
       subject: `New Task Assigned: ${task.title}`,
       html
