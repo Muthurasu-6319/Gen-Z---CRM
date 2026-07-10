@@ -78,12 +78,9 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
     };
 
     const DEFAULT_AVATARS = [
-        'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
-        'https://api.dicebear.com/7.x/adventurer/svg?seed=Mia',
-        'https://api.dicebear.com/7.x/bottts/svg?seed=Tech',
-        'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Smile',
-        'https://api.dicebear.com/7.x/personas/svg?seed=User1',
-        'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo'
+        'default_avatar_1.png',
+        'default_avatar_2.png',
+        'default_avatar_3.png'
     ];
 
     const handleSelectDefaultAvatar = async (url: string) => {
@@ -143,10 +140,10 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
                                     <button
                                         key={idx}
                                         onClick={() => handleSelectDefaultAvatar(avatar)}
-                                        className="w-10 h-10 rounded-full bg-white border-2 border-transparent hover:border-primary focus:outline-none focus:border-primary shadow-sm hover:shadow-md transition-all p-0.5"
+                                        className="w-12 h-12 rounded-full bg-white border-2 border-transparent hover:border-primary focus:outline-none focus:border-primary shadow-sm hover:shadow-md transition-all p-0.5"
                                         title="Select Avatar"
                                     >
-                                        <img src={avatar} alt={`Avatar ${idx+1}`} className="w-full h-full rounded-full" />
+                                        <img src={avatar.startsWith('http') ? avatar : `${API_BASE}/uploads/${avatar}`} alt={`Avatar ${idx+1}`} className="w-full h-full rounded-full object-cover" />
                                     </button>
                                 ))}
                             </div>
