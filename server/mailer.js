@@ -16,6 +16,11 @@ function getResendClient() {
   return resendClient;
 }
 
+// Safe from address — always plain email, no angle brackets in env
+function getFromAddress() {
+  return process.env.RESEND_FROM || 'onboarding@resend.dev';
+}
+
 // Compatibility shim: createTransporter() returns a Resend-backed sendMail object
 async function createTransporter() {
   const resend = getResendClient();
@@ -26,7 +31,7 @@ async function createTransporter() {
         return;
       }
       const { data, error } = await resend.emails.send({
-        from: from || process.env.RESEND_FROM || 'GenZ CRM <no-reply@genzneuralx.com>',
+        from: from || getFromAddress(),
         to: Array.isArray(to) ? to : [to],
         subject,
         html
@@ -70,7 +75,7 @@ async function sendAssignmentEmail(userEmail, username, itemType, itemTitle, des
 
   try {
     const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM || 'GenZ CRM <no-reply@genzneuralx.com>',
+      from: getFromAddress(),
       to: [userEmail],
       subject: `New Assignment: ${itemTitle}`,
       html

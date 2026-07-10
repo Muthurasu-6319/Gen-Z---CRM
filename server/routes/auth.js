@@ -79,7 +79,7 @@ router.post('/forgot-password', async (req, res) => {
     
     const transporter = await createTransporter();
     await transporter.sendMail({
-      from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
       to: email,
       subject: 'Password Reset OTP',
       html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
