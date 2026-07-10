@@ -1,18 +1,17 @@
 // server/routes/users.js — Firebase Firestore version
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
 const auth = require('../middleware/auth');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne, setDoc } = require('../firebase-admin');
 
 const { createTransporter } = require('../mailer');
 
 async function sendWelcomeEmail(user, rawPassword) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('SMTP credentials not configured, skipping welcome email.');
-      return;
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('Resend not configured, skipping welcome email.');
+    return;
   }
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   
   let permissionsHtml = `<p><strong>Access Role:</strong> ${user.role}</p>`;
   if (user.role !== 'Client' && user.permissions) {
@@ -56,7 +55,7 @@ async function sendWelcomeEmail(user, rawPassword) {
     `;
 
     await transporter.sendMail({
-      from: `"GenZ - CRM" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
       to: user.email,
       subject: 'Welcome to GENZ CRM - Your Login Details',
       html
