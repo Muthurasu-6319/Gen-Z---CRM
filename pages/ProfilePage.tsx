@@ -77,6 +77,20 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
         alert("Permission request feature will notify admin soon!");
     };
 
+    const DEFAULT_AVATARS = [
+        'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+        'https://api.dicebear.com/7.x/adventurer/svg?seed=Mia',
+        'https://api.dicebear.com/7.x/bottts/svg?seed=Tech',
+        'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Smile',
+        'https://api.dicebear.com/7.x/personas/svg?seed=User1',
+        'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo'
+    ];
+
+    const handleSelectDefaultAvatar = async (url: string) => {
+        setProfilePicUrl(url);
+        await handleSave({ profile_picture: url });
+    };
+
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             <header className="flex justify-between items-center mb-6">
@@ -119,7 +133,24 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900">{currentProfile.username}</h2>
                         <p className="text-gray-500 font-medium">{currentProfile.role} {currentProfile.designation ? `- ${currentProfile.designation}` : ''}</p>
-                        <p className="text-sm text-gray-400 mt-1">{currentProfile.email}</p>
+                        <p className="text-sm text-gray-400 mt-1 mb-4">{currentProfile.email}</p>
+                        
+                        {/* Default Avatars Section */}
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Or Choose Default Avatar</span>
+                            <div className="flex space-x-2">
+                                {DEFAULT_AVATARS.map((avatar, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleSelectDefaultAvatar(avatar)}
+                                        className="w-10 h-10 rounded-full bg-white border-2 border-transparent hover:border-primary focus:outline-none focus:border-primary shadow-sm hover:shadow-md transition-all p-0.5"
+                                        title="Select Avatar"
+                                    >
+                                        <img src={avatar} alt={`Avatar ${idx+1}`} className="w-full h-full rounded-full" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
