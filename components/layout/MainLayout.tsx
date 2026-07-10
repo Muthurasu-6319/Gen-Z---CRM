@@ -166,7 +166,10 @@ const LayoutContent: React.FC = () => {
         pageProps.setActivePage = handleSetActivePage;
     }
 
-    const canViewPage = hasPermission(pageId.split('/')[0], 'view'); // e.g., "projects" permission ah check pannu
+    let canViewPage = hasPermission(pageId.split('/')[0], 'view'); // e.g., "projects" permission ah check pannu
+    if (pageId === 'team-chat') {
+        canViewPage = canViewPage || hasPermission('chat-staff', 'view') || hasPermission('chat-client', 'view') || hasPermission('chat-dm', 'view');
+    }
     const CurrentPage = canViewPage ? (pages[pageId] || DashboardPage) : AccessDeniedPage;
     
     // Special props thevai padura pages

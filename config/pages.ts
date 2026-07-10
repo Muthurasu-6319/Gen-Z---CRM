@@ -83,7 +83,4 @@ export const STAFF_PERMISSION_PAGES = ALL_PAGES.filter(p => p.staffVisible !== f
 export const PERMISSION_PARENT_MAP: Record<string, string> = {
   'mailbox-inbox':  'mailbox',
   'mail-templates': 'mailbox',
-  'chat-staff':     'team-chat',
-  'chat-client':    'team-chat',
-  'chat-dm':        'team-chat',
 };

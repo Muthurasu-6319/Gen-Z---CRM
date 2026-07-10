@@ -114,7 +114,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activePage, setActivePage }) 
       // For Staff & Custom Roles, check permissions entirely
       if (item.roles.length === 1 && item.roles[0] === 'Client') return false; // Hide pure client portals
       
-      const hasViewPermission = hasPermission(item.id, 'view');
+      let hasViewPermission = hasPermission(item.id, 'view');
+      if (item.id === 'team-chat') {
+        hasViewPermission = hasViewPermission || hasPermission('chat-staff', 'view') || hasPermission('chat-client', 'view') || hasPermission('chat-dm', 'view');
+      }
       if (!hasViewPermission) return false;
       
       if (searchTerm.trim() !== '' && !item.label.toLowerCase().includes(searchTerm.toLowerCase())) {
