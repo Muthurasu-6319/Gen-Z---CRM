@@ -211,8 +211,36 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
       {/* Chat Area */}
       <div className="flex flex-col flex-1 h-full bg-white">
         <div className="border-b p-4 shadow-sm z-10 bg-white flex justify-between items-center">
-            <h1 className="text-xl font-bold text-text-primary">{getRoomName()}</h1>
-            {loading && <span className="text-sm text-gray-400">Loading...</span>}
+            <div className="flex flex-col">
+                <h1 className="text-xl font-bold text-text-primary flex items-center">
+                    {getRoomName()}
+                </h1>
+                {loading && <span className="text-xs text-gray-400">Loading messages...</span>}
+            </div>
+            
+            <div className="flex items-center">
+                <div className="text-xs font-semibold text-gray-400 mr-3 uppercase tracking-wider hidden sm:block">
+                    Online — {onlineUsers.length}
+                </div>
+                <div className="flex -space-x-2 overflow-visible relative">
+                    {onlineUsers.slice(0, 5).map(ou => (
+                        <div key={ou.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shadow-sm relative group cursor-default">
+                            {ou.username.charAt(0).toUpperCase()}
+                            <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white"></span>
+                            
+                            {/* Tooltip */}
+                            <div className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none z-50 transition-opacity">
+                                {ou.username}
+                            </div>
+                        </div>
+                    ))}
+                    {onlineUsers.length > 5 && (
+                        <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs shadow-sm cursor-default">
+                            +{onlineUsers.length - 5}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
         
         <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
