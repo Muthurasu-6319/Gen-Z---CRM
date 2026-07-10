@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import * as Icons from '../icons/Icons';
 import { usePermissions } from '../auth/PermissionsContext';
+import { API_BASE } from '../../apiClient';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -141,8 +142,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activePage, setActivePage }) 
       {/* Profile Section */}
       <div className={`p-4 text-center border-b border-gray-700 flex-shrink-0 ${!isOpen ? 'hidden' : ''}`}>
         <div className="relative inline-block">
-          <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center mx-auto">
-            <Icons.UserCircleIcon className="w-16 h-16 text-gray-500"/>
+          <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center mx-auto overflow-hidden border-2 border-gray-600">
+            {currentProfile?.profile_picture ? (
+              <img src={currentProfile.profile_picture.startsWith('http') ? currentProfile.profile_picture : `${API_BASE}/uploads/${currentProfile.profile_picture}`} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <Icons.UserCircleIcon className="w-16 h-16 text-gray-500"/>
+            )}
           </div>
           <span className="absolute bottom-1 right-1 block h-4 w-4 rounded-full bg-green-500 border-2 border-sidebar-bg"></span>
         </div>

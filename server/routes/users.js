@@ -136,7 +136,7 @@ router.put('/:id', auth, async (req, res) => {
   if (req.user.role !== 'Admin' && req.user.id !== req.params.id)
     return res.status(403).json({ error: 'Forbidden' });
 
-  const { username, email, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, password, total_paid, total_pending, services } = req.body;
+  const { username, email, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, password, total_paid, total_pending, services, profile_picture } = req.body;
   try {
     const updateData = {};
     if (username !== undefined) updateData.username = username;
@@ -152,6 +152,7 @@ router.put('/:id', auth, async (req, res) => {
     if (total_paid !== undefined) updateData.total_paid = Number(total_paid);
     if (total_pending !== undefined) updateData.total_pending = Number(total_pending);
     if (services !== undefined) updateData.services = services;
+    if (profile_picture !== undefined) updateData.profile_picture = profile_picture;
     
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
