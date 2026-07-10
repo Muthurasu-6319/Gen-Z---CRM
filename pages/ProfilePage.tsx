@@ -20,6 +20,12 @@ const ProfilePage: React.FC<{ title?: string }> = ({ title = 'My Profile' }) => 
     const [uploadingImage, setUploadingImage] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
+    useEffect(() => {
+        if (currentProfile?.profile_picture) {
+            setProfilePicUrl(currentProfile.profile_picture);
+        }
+    }, [currentProfile]);
+
     if (!currentProfile) {
         return <div className="p-8 text-center text-gray-500">Loading Profile...</div>;
     }
