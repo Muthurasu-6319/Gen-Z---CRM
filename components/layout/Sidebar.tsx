@@ -51,7 +51,7 @@ export const sidebarItems: SidebarItem[] = [
   { id: 'my-attendance', label: 'My Attendance', icon: Icons.UserCircleIcon, roles: ['Staff'] },
   { id: 'user-notes', label: 'User Notes', icon: Icons.DocumentTextIcon, roles: ['Admin', 'Staff'] },
   { id: 'user-management', label: 'User Management', icon: Icons.UserGroupIcon, roles: ['Admin'] },
-  { id: 'clients', label: 'Clients / Customers', icon: Icons.UsersIcon, roles: ['Admin', 'Staff'] },
+  { id: 'clients', label: 'Clients / Customers', icon: Icons.UsersIcon, roles: ['Admin', 'Staff', 'Custom'] },
   { id: 'my-leave-requests', label: 'My Leave Requests', icon: Icons.CalendarDaysIcon, roles: ['Staff'] },
   { id: 'leave-management', label: 'Leave Management', icon: Icons.CalendarDaysIcon, roles: ['Admin'] },
   { id: 'reports', label: 'My Reports', icon: Icons.ChartBarIcon, roles: ['Staff'] },
