@@ -25,7 +25,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 router.post('/', auth, async (req, res) => {
-  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, assigned_by, lead_generator_id, lead_generator_incentive } = req.body;
+  const { name, category, description, client_name, client_mobile, total_cost, project_asset, start_date, end_date, status, tags, assigned_to, assigned_amounts, assigned_by, lead_generator_id, lead_generator_incentive, converting_client_id } = req.body;
   try {
     const newProject = {
       name,
@@ -49,15 +49,12 @@ router.post('/', auth, async (req, res) => {
     
     const doc = await addDoc('projects', newProject);
 
-    // Send email to assigned users
-    if (assigned_to && assigned_to.length > 0) {
-      notifyAssignedUsers(assigned_to, newProject, null, req.user ? req.user.id : null);
+    if (converting_client_id) {
+       await deleteDoc('profiles', converting_client_id);
     }
 
-    // Send email to Lead Generator
-    if (newProject.lead_generator_id) {
-      notifyLeadGenerator(newProject);
-    }
+    // Send comprehensive emails for project creation
+    handleProjectCreationEmails(doc).catch(console.error);
 
     res.status(201).json(doc);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -90,9 +87,34 @@ router.put('/:id', auth, async (req, res) => {
 
     const doc = await updateDoc('projects', req.params.id, updateData);
 
-    // Check newly assigned users and send email
-    if (assigned_to && assigned_to.length > 0) {
-      notifyAssignedUsers(assigned_to, doc, oldProject, req.user ? req.user.id : null);
+    // Send email if status was changed by non-creator
+    if (oldProject.status !== doc.status && String(req.user.id) !== String(oldProject.created_by)) {
+        try {
+            const creator = await getDoc('profiles', oldProject.created_by);
+            if (creator && creator.email) {
+                const transporter = await createTransporter();
+                const mainAdminEmail = process.env.GMAIL_USER || 'gency.dev.off@gmail.com';
+                const modifier = await getDoc('profiles', req.user.id);
+                const modifierName = modifier ? modifier.username : 'An assigned user';
+                const html = `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+                    <h2 style="color: #4f46e5;">Project Status Updated</h2>
+                    <p>The status of your project <strong>${doc.name}</strong> was updated by ${modifierName}.</p>
+                    <p><strong>Old Status:</strong> ${oldProject.status}</p>
+                    <p><strong>New Status:</strong> ${doc.status}</p>
+                  </div>
+                `;
+                transporter.sendMail({ from: mainAdminEmail, to: creator.email, subject: `Project Status Updated: ${doc.name}`, html }).catch(console.error);
+            }
+        } catch(e) { console.error('Error sending status update email', e); }
+    }
+
+    // Send email to newly assigned staff
+    const oldAssigned = oldProject.assigned_to || [];
+    const newAssigned = doc.assigned_to || [];
+    const newlyAssignedIds = newAssigned.filter(id => !oldAssigned.includes(id));
+    if (newlyAssignedIds.length > 0) {
+        handleNewAssignmentsEmail(doc, newlyAssignedIds).catch(console.error);
     }
 
     res.json(doc);
@@ -188,152 +210,174 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Helper function to send email notification to assigned users
-async function notifyAssignedUsers(userIds, project, oldProject, excludeUserId = null) {
-  if (!process.env.GMAIL_USER) return;
-
+async function handleProjectCreationEmails(project) {
   const transporter = await createTransporter();
+  if (!transporter) return;
+
+  const profiles = await getCollection('profiles');
+  const mainAdminEmail = process.env.GMAIL_USER || 'gency.dev.off@gmail.com';
   
-  let creatorName = 'Admin';
-  if (project.created_by) {
-    try {
-      const creator = await getDoc('profiles', project.created_by);
-      if (creator) creatorName = creator.username || creatorName;
-    } catch (e) {}
+  const getUser = (id) => profiles.find(p => String(p.id || p._id) === String(id));
+  const creator = project.created_by ? getUser(project.created_by) : null;
+  const creatorName = creator ? creator.username : 'Admin';
+  const leadGen = project.lead_generator_id ? getUser(project.lead_generator_id) : null;
+  const leadGenName = leadGen ? leadGen.username : 'N/A';
+  const assignedIds = Array.isArray(project.assigned_to) ? project.assigned_to.map(String) : [];
+  
+  // 1. Admin Email
+  const adminHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+      <h2 style="color: #4f46e5;">New Project Created</h2>
+      <table style="width: 100%; text-align: left; border-collapse: collapse;">
+        <tr><td style="padding: 4px 0;"><strong>Project Name:</strong></td><td>${project.name}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Created By:</strong></td><td>${creatorName}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Category:</strong></td><td>${project.category || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Tags:</strong></td><td>${Array.isArray(project.tags) ? project.tags.join(', ') : 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Description:</strong></td><td>${project.description || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${project.client_name || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Client Mobile:</strong></td><td>${project.client_mobile || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Total Cost:</strong></td><td>${project.total_cost !== null ? `₹${project.total_cost}` : 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Timeline:</strong></td><td>${project.start_date || 'N/A'} to ${project.end_date || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Lead Generator:</strong></td><td>${leadGenName}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Lead Incentive:</strong></td><td>${project.lead_generator_incentive !== null ? `₹${project.lead_generator_incentive}` : 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Assigned To:</strong></td><td>${assignedIds.length > 0 ? assignedIds.map(id => getUser(id)?.username).join(', ') : 'None'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
+      </table>
+      ${project.project_asset ? `<div style="margin-top: 15px;"><strong>Project Assets:</strong> <a href="${project.project_asset}">View Assets</a></div>` : ''}
+    </div>
+  `;
+  transporter.sendMail({ from: mainAdminEmail, to: mainAdminEmail, subject: `New Project Created: ${project.name}`, html: adminHtml }).catch(console.error);
+
+  // 2. Lead Generator Email
+  if (leadGen && leadGen.email) {
+    const lgHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4f46e5;">Project Created from your Lead</h2>
+        <table style="width: 100%; text-align: left; border-collapse: collapse;">
+          <tr><td style="padding: 4px 0;"><strong>Project Name:</strong></td><td>${project.name}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Created By:</strong></td><td>${creatorName}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Category:</strong></td><td>${project.category || 'N/A'}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Description:</strong></td><td>${project.description || 'N/A'}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${project.client_name || 'N/A'}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Client Mobile:</strong></td><td>${project.client_mobile || 'N/A'}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Timeline:</strong></td><td>${project.start_date || 'N/A'} to ${project.end_date || 'N/A'}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Lead Generator:</strong></td><td>You</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Your Incentive:</strong></td><td>${project.lead_generator_incentive !== null ? `₹${project.lead_generator_incentive}` : 'N/A'}</td></tr>
+          <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
+        </table>
+      </div>
+    `;
+    transporter.sendMail({ from: mainAdminEmail, to: leadGen.email, subject: `Project Created from your Lead: ${project.name}`, html: lgHtml }).catch(console.error);
   }
 
-  let leadGenName = 'N/A';
-  if (project.lead_generator_id) {
-    try {
-      const leadGen = await getDoc('profiles', project.lead_generator_id);
-      if (leadGen) leadGenName = leadGen.username || leadGenName;
-    } catch (e) {}
-  }
-  
-  for (const userId of userIds) {
-    if (String(userId) === String(excludeUserId)) continue;
-    
-    try {
-      const user = await getDoc('profiles', userId);
-      if (!user || !user.email) continue;
-      
-      const assignedAmount = project.assigned_amounts && project.assigned_amounts[userId] ? project.assigned_amounts[userId] : null;
-      let costInfo = 'N/A';
-      if (assignedAmount !== null) {
-         costInfo = `₹${Number(assignedAmount).toFixed(2)}`;
-      }
-      
-      const html = `
+  // 3. Assigned Staff Emails
+  for (const id of assignedIds) {
+    const user = getUser(id);
+    if (user && user.email) {
+      const amt = project.assigned_amounts && project.assigned_amounts[id] ? project.assigned_amounts[id] : 'N/A';
+      const staffHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-          <h2 style="color: #4f46e5;">Project Assignment Notification</h2>
-          <p>Hello <strong>${user.username}</strong>,</p>
-          <p>You have been assigned to a project in the Gen Z CRM system.</p>
-          
-          <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #111827;">Project Details</h3>
-            <table style="width: 100%; text-align: left; border-collapse: collapse;">
-              <tr><td style="padding: 4px 0;"><strong>Project Name:</strong></td><td>${project.name}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Created By:</strong></td><td>${creatorName}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${project.client_name || 'N/A'}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Client Mobile:</strong></td><td>${project.client_mobile || 'N/A'}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Lead Generator:</strong></td><td>${leadGenName}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Category:</strong></td><td>${project.category || 'N/A'}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Tags:</strong></td><td>${Array.isArray(project.tags) ? project.tags.join(', ') : 'N/A'}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Timeline:</strong></td><td>${project.start_date || 'N/A'} to ${project.end_date || 'N/A'}</td></tr>
-              <tr><td style="padding: 4px 0;"><strong>Assigned Amount:</strong></td><td><span style="color: #059669; font-weight: bold;">${costInfo}</span></td></tr>
-            </table>
-            ${project.description ? `<div style="margin-top: 15px;"><strong>Description:</strong><p style="margin-top: 5px; color: #555;">${project.description}</p></div>` : ''}
-          </div>
-          
-          <p>Please log in to your CRM dashboard to view more details.</p>
-          <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">
-            Warm Regards,<br>
-            GENZ Team
-          </p>
+          <h2 style="color: #4f46e5;">You have been assigned to a new project</h2>
+          <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <tr><td style="padding: 4px 0;"><strong>Project Name:</strong></td><td>${project.name}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Created By:</strong></td><td>${creatorName}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Category:</strong></td><td>${project.category || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Tags:</strong></td><td>${Array.isArray(project.tags) ? project.tags.join(', ') : 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Description:</strong></td><td>${project.description || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${project.client_name || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Client Mobile:</strong></td><td>${project.client_mobile || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Timeline:</strong></td><td>${project.start_date || 'N/A'} to ${project.end_date || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Assigned Amount:</strong></td><td>${amt !== 'N/A' ? `₹${amt}` : 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
+          </table>
         </div>
       `;
-
-      await transporter.sendMail({
-        from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-        to: user.email,
-        subject: `You have been assigned to project: ${project.name}`,
-        html,
-      });
+      transporter.sendMail({ from: mainAdminEmail, to: user.email, subject: `Project Assignment: ${project.name}`, html: staffHtml }).catch(console.error);
       
-      // Also send CRM notification
-      await addDoc('notifications', {
-        recipient_profile_id: userId,
+      addDoc('notifications', {
+        recipient_profile_id: user.id || user._id,
         message: `You were assigned to project: ${project.name}`,
         related_item_type: 'project',
         related_item_id: project.id || null,
         is_read: 0
-      });
-      
-    } catch (e) {
-      console.error('Failed to notify assigned user', userId, e);
+      }).catch(console.error);
     }
+  }
+
+  // 4. Other Users Email
+  const otherUsers = profiles.filter(p => {
+    const pId = String(p.id || p._id);
+    const isClient = p.role === 'Client';
+    const isLeadGen = pId === String(project.lead_generator_id);
+    const isAssigned = assignedIds.includes(pId);
+    const isAdmin = p.role === 'Admin' || p.role === 'Administrator' || p.email === mainAdminEmail;
+    return !isClient && !isLeadGen && !isAssigned && !isAdmin && p.email;
+  });
+
+  const othersHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+      <h2 style="color: #4f46e5;">New Project Added to CRM</h2>
+      <table style="width: 100%; text-align: left; border-collapse: collapse;">
+        <tr><td style="padding: 4px 0;"><strong>Project Name:</strong></td><td>${project.name}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Created By:</strong></td><td>${creatorName}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Category:</strong></td><td>${project.category || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Tags:</strong></td><td>${Array.isArray(project.tags) ? project.tags.join(', ') : 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Description:</strong></td><td>${project.description || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${project.client_name || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Client Mobile:</strong></td><td>${project.client_mobile || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Timeline:</strong></td><td>${project.start_date || 'N/A'} to ${project.end_date || 'N/A'}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
+      </table>
+    </div>
+  `;
+  for (const user of otherUsers) {
+    transporter.sendMail({ from: mainAdminEmail, to: user.email, subject: `New Project: ${project.name}`, html: othersHtml }).catch(console.error);
   }
 }
 
-async function notifyLeadGenerator(project) {
-  if (!process.env.GMAIL_USER || !project.lead_generator_id) return;
-
-  try {
-    const leadGenerator = await getDoc('profiles', project.lead_generator_id);
-    if (!leadGenerator || !leadGenerator.email) return;
-
-    let creatorName = 'Admin';
-    if (project.created_by) {
-      try {
-        const creator = await getDoc('profiles', project.created_by);
-        if (creator) creatorName = creator.username || creatorName;
-      } catch (e) {}
-    }
-
-    const transporter = await createTransporter();
-    
-    let incentive = 'N/A';
-    if (project.lead_generator_incentive !== null && project.lead_generator_incentive !== undefined) {
-       incentive = `₹${Number(project.lead_generator_incentive).toFixed(2)}`;
-    }
-
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-        <h2 style="color: #4f46e5;">Project Lead Assignment Notification</h2>
-        <p>Hello <strong>${leadGenerator.username}</strong>,</p>
-        <p>A new project has been created from your lead in the Gen Z CRM system.</p>
-        
-        <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #111827;">Project Details</h3>
+async function handleNewAssignmentsEmail(project, newlyAssignedIds) {
+  const transporter = await createTransporter();
+  if (!transporter) return;
+  const profiles = await getCollection('profiles');
+  const mainAdminEmail = process.env.GMAIL_USER || 'gency.dev.off@gmail.com';
+  
+  const getUser = (id) => profiles.find(p => String(p.id || p._id) === String(id));
+  const creator = project.created_by ? getUser(project.created_by) : null;
+  const creatorName = creator ? creator.username : 'Admin';
+  
+  for (const id of newlyAssignedIds) {
+    const user = getUser(id);
+    if (user && user.email) {
+      const amt = project.assigned_amounts && project.assigned_amounts[id] ? project.assigned_amounts[id] : 'N/A';
+      const assignerName = project.assigned_by && project.assigned_by[id] ? project.assigned_by[id] : creatorName;
+      const staffHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+          <h2 style="color: #4f46e5;">You have been assigned to a project</h2>
           <table style="width: 100%; text-align: left; border-collapse: collapse;">
             <tr><td style="padding: 4px 0;"><strong>Project Name:</strong></td><td>${project.name}</td></tr>
             <tr><td style="padding: 4px 0;"><strong>Created By:</strong></td><td>${creatorName}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Assigned By:</strong></td><td>${assignerName}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Category:</strong></td><td>${project.category || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Tags:</strong></td><td>${Array.isArray(project.tags) ? project.tags.join(', ') : 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Description:</strong></td><td>${project.description || 'N/A'}</td></tr>
             <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${project.client_name || 'N/A'}</td></tr>
             <tr><td style="padding: 4px 0;"><strong>Client Mobile:</strong></td><td>${project.client_mobile || 'N/A'}</td></tr>
-            <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
             <tr><td style="padding: 4px 0;"><strong>Timeline:</strong></td><td>${project.start_date || 'N/A'} to ${project.end_date || 'N/A'}</td></tr>
-            <tr><td style="padding: 4px 0;"><strong>Lead Incentive:</strong></td><td><span style="color: #059669; font-weight: bold;">${incentive}</span></td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Assigned Amount:</strong></td><td>${amt !== 'N/A' ? `₹${amt}` : 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${project.status}</td></tr>
           </table>
         </div>
-        
-        <p>Thank you for generating this lead!</p>
-        <p style="margin-top: 30px; font-size: 12px; color: #6b7280;">
-          Warm Regards,<br>
-          GENZ Team
-        </p>
-      </div>
-    `;
-
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-      to: leadGenerator.email,
-      subject: `Project Created from your Lead: ${project.name}`,
-      html,
-    });
-    
-  } catch (e) {
-    console.error('Failed to notify lead generator', e);
+      `;
+      transporter.sendMail({ from: mainAdminEmail, to: user.email, subject: `Project Assignment: ${project.name}`, html: staffHtml }).catch(console.error);
+      
+      addDoc('notifications', {
+        recipient_profile_id: user.id || user._id,
+        message: `You were assigned to project: ${project.name} by ${assignerName}`,
+        related_item_type: 'project',
+        related_item_id: project.id || null,
+        is_read: 0
+      }).catch(console.error);
+    }
   }
 }
 

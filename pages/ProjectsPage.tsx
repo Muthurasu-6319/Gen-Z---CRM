@@ -22,6 +22,7 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
     const [isModalOpen, setModalOpen] = useState(false);
     const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [convertingClientId, setConvertingClientId] = useState<string | null>(null);
     
     // v-- PUDHU STATES FOR FILTERS & BULK ACTIONS --v
     const [selectedProjects, setSelectedProjects] = useState<Set<number>>(new Set());
@@ -67,6 +68,7 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
         const urlParams = new URLSearchParams(window.location.search);
         const newProjectClient = urlParams.get('new_project_client');
         const newProjectMobile = urlParams.get('new_project_mobile');
+        const newProjectClientId = urlParams.get('new_project_client_id');
         
         if (newProjectClient) {
             setProjectToEdit({
@@ -74,12 +76,14 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
                 client_name: newProjectClient,
                 client_mobile: newProjectMobile || ''
             } as any);
+            if (newProjectClientId) setConvertingClientId(newProjectClientId);
             setModalOpen(true);
             
             // Clean up URL parameters so it doesn't reopen on refresh
             const url = new URL(window.location.href);
             url.searchParams.delete('new_project_client');
             url.searchParams.delete('new_project_mobile');
+            url.searchParams.delete('new_project_client_id');
             window.history.replaceState({}, '', url.toString());
         }
     }, []);
@@ -89,6 +93,9 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
         let finalData: any = { ...projectData };
         if ((!projectToEdit || !projectToEdit.id) && currentProfile) {
             finalData.created_by = currentProfile.id;
+            if (convertingClientId) {
+                finalData.converting_client_id = convertingClientId;
+            }
         }
         
         try {
@@ -100,6 +107,7 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
             fetchProjects();
             setModalOpen(false);
             setProjectToEdit(null);
+            setConvertingClientId(null);
         } catch (err: any) {
             alert(`Error saving project: ${err.message || err}`);
         } finally {
@@ -161,11 +169,12 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
             
             const isAdmin = currentProfile?.role === 'Admin' || currentProfile?.role === 'Administrator';
             
-            // Non-admins can only see projects if they are assigned or if they are the lead generator
+            // Non-admins can only see projects if they created it, are assigned, or are the lead generator
             if (!isAdmin) {
+                const isCreator = currentProfile && p.created_by === currentProfile.id;
                 const isAssigned = currentProfile && p.assigned_to?.some((id: any) => String(id) === String(currentProfile.id));
                 const isLeadGenerator = currentProfile && p.lead_generator_id === currentProfile.id;
-                if (!isAssigned && !isLeadGenerator) {
+                if (!isCreator && !isAssigned && !isLeadGenerator) {
                     return false;
                 }
             }

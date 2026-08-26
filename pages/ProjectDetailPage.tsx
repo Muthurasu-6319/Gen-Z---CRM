@@ -82,24 +82,47 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
     if (!project) return <div className="p-8 text-center text-red-500">Project not found.</div>;
 
     const isAdmin = currentProfile?.role === 'Admin' || currentProfile?.role === 'Administrator';
+    const isCreator = currentProfile && project.created_by === currentProfile.id;
+    const isFullAccess = isAdmin || isCreator;
+
     const isAssignedToMe = currentProfile && project.assigned_to?.includes(currentProfile.id);
+    const isLeadGen = currentProfile && project.lead_generator_id === currentProfile.id;
+
     const myAmount = isAssignedToMe && project.assigned_amounts ? project.assigned_amounts[currentProfile.id] : null;
     
-    // Determine if the current user is ONLY the lead generator (and not an admin)
-    const isLeadGeneratorOnlyView = !isAdmin && currentProfile?.id === project.lead_generator_id;
+    // View roles (can be both)
+    const isLeadGenView = !isFullAccess && isLeadGen;
+    const isAssignedView = !isFullAccess && isAssignedToMe;
 
     const handleAssignStaff = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedStaffId || !project || !currentProfile) return;
+        
+        const amountToAssign = Number(assignAmount) || 0;
+
+        // If not full access, validate amount against their own allocation
+        if (!isFullAccess) {
+            if (myAmount === null || myAmount === undefined || amountToAssign > myAmount) {
+                alert(`You cannot assign more than your allocated amount (₹${myAmount || 0}).`);
+                return;
+            }
+        }
+
         setIsAssigning(true);
         try {
             const newAssignedTo = [...(project.assigned_to || [])];
             if (!newAssignedTo.includes(selectedStaffId)) {
                 newAssignedTo.push(selectedStaffId);
             }
-            const newAmounts = { ...(project.assigned_amounts || {}) };
-            if (assignAmount) newAmounts[selectedStaffId] = Number(assignAmount);
             
+            const newAmounts = { ...(project.assigned_amounts || {}) };
+            if (assignAmount) newAmounts[selectedStaffId] = amountToAssign;
+            
+            // Deduct from current user if they are not admin/creator
+            if (!isFullAccess && myAmount !== null && myAmount !== undefined) {
+                newAmounts[currentProfile.id] = myAmount - amountToAssign;
+            }
+
             const newAssignedBy = { ...(project.assigned_by || {}) };
             newAssignedBy[selectedStaffId] = currentProfile.username;
 
@@ -127,7 +150,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
             <div className="bg-white shadow-md rounded-lg p-6">
                 <div className="flex justify-between items-start">
                     <h1 className="text-3xl font-bold text-text-primary">{project.name}</h1>
-                    {(isAdmin || (currentProfile && project.assigned_to?.includes(currentProfile.id))) ? (
+                    {(isFullAccess || isAssignedToMe) ? (
                         <select 
                             value={project.status}
                             onChange={async (e) => {
@@ -148,13 +171,11 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     )}
                 </div>
                 
-                {!isLeadGeneratorOnlyView && (
-                    <div className="mt-2 text-sm text-gray-500">
-                        Category: <span className="font-medium text-gray-700">{project.category || 'N/A'}</span>
-                    </div>
-                )}
+                <div className="mt-2 text-sm text-gray-500">
+                    Category: <span className="font-medium text-gray-700">{project.category || 'N/A'}</span>
+                </div>
 
-                {!isLeadGeneratorOnlyView && project.description && (
+                {project.description && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg text-gray-700">
                         <h3 className="font-semibold text-gray-600 mb-1">Description</h3>
                         <p className="whitespace-pre-wrap">{project.description}</p>
@@ -170,23 +191,23 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                         <h3 className="font-semibold text-gray-600">Client Mobile</h3>
                         <p>{project.client_mobile || 'N/A'}</p>
                     </div>
-                    {!isLeadGeneratorOnlyView && (
+                    {isFullAccess && (
                         <div>
                             <h3 className="font-semibold text-gray-600">Total Cost</h3>
                             <p>{project.total_cost !== undefined && project.total_cost !== null ? `₹${project.total_cost}` : 'N/A'}</p>
-                            
-                            {/* Custom Percentage Amount Display */}
-                            {!isAdmin && myAmount !== null && myAmount !== undefined && (
-                                 <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
-                                     <strong>My Allocated Amount:</strong><br/>
-                                     ₹{myAmount}
-                                     {project.assigned_by && project.assigned_by[currentProfile.id] && (
-                                         <div className="text-xs mt-1 text-green-700 opacity-80">
-                                             Assigned By: {project.assigned_by[currentProfile.id]}
-                                         </div>
-                                     )}
-                                 </div>
-                            )}
+                        </div>
+                    )}
+                    {isAssignedView && myAmount !== null && myAmount !== undefined && (
+                        <div>
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
+                                <strong>My Allocated Amount:</strong><br/>
+                                ₹{myAmount}
+                                {project.assigned_by && project.assigned_by[currentProfile.id] && (
+                                    <div className="text-xs mt-1 text-green-700 opacity-80">
+                                        Assigned By: {project.assigned_by[currentProfile.id]}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                     <div>
@@ -197,43 +218,43 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                         <h3 className="font-semibold text-gray-600">End Date</h3>
                         <p>{project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Not set'}</p>
                     </div>
-                    {!isLeadGeneratorOnlyView && (
-                        <>
-                            <div>
-                                <h3 className="font-semibold text-gray-600">Project Asset</h3>
-                                <p>
-                                  {project.project_asset ? (
-                                    project.project_asset.startsWith('http') || project.project_asset.startsWith('/') ? (
-                                      <a href={project.project_asset} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all inline-flex items-center">
-                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                        Open Asset / Folder
-                                      </a>
-                                    ) : (
-                                      project.project_asset
-                                    )
-                                  ) : (
-                                    'N/A'
-                                  )}
-                                </p>
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-600">Tags</h3>
-                                <div className="flex flex-wrap gap-2 mt-1">
-                                    {(project.tags || []).map(tag => (
-                                        <span key={tag} className="bg-gray-200 text-gray-800 px-2 py-1 text-xs rounded-full">{tag}</span>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
+                    {isFullAccess && (
+                        <div>
+                            <h3 className="font-semibold text-gray-600">Project Asset</h3>
+                            <p>
+                              {project.project_asset ? (
+                                project.project_asset.startsWith('http') || project.project_asset.startsWith('/') ? (
+                                  <a href={project.project_asset} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all inline-flex items-center">
+                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                    Open Asset / Folder
+                                  </a>
+                                ) : (
+                                  project.project_asset
+                                )
+                              ) : (
+                                'N/A'
+                              )}
+                            </p>
+                        </div>
                     )}
-                    {project.lead_generator_id && (
+                    {(isFullAccess || isAssignedView) && (
+                        <div>
+                            <h3 className="font-semibold text-gray-600">Tags</h3>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                                {(project.tags || []).map(tag => (
+                                    <span key={tag} className="bg-gray-200 text-gray-800 px-2 py-1 text-xs rounded-full">{tag}</span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {project.lead_generator_id && (isFullAccess || isLeadGenView) && (
                         <div>
                             <h3 className="font-semibold text-gray-600">Lead Generator</h3>
                             <p>
                                 {/* Find user by lead_generator_id from staffList if we had it, but we can just display the ID or fetch it. Actually we don't fetch all users here, let's just show a label, or check if it's assigned staff */}
                                 {project.assigned_staff.find(s => s.id === project.lead_generator_id)?.username || project.lead_generator_id}
                             </p>
-                            {(isAdmin || currentProfile?.id === project.lead_generator_id) && project.lead_generator_incentive !== null && (
+                            {project.lead_generator_incentive !== null && (
                                 <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
                                     <strong>Incentive:</strong><br/>
                                     ₹{project.lead_generator_incentive}
@@ -243,22 +264,23 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     )}
                 </div>
 
-                {!isLeadGeneratorOnlyView && (
+                {(isFullAccess || isAssignedView) && (
                     <div className="mt-6 border-t pt-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-semibold text-gray-600">Assigned Staff</h3>
-                            {(isAdmin || isAssignedToMe) && (
-                                <button 
-                                    onClick={() => setIsAssignModalOpen(true)}
-                                    className="text-sm bg-primary text-white px-3 py-1.5 rounded-md shadow hover:bg-primary-dark transition"
-                                >
-                                    + Redirect / Assign Staff
-                                </button>
-                            )}
+                            <h3 className="font-semibold text-gray-600">{isFullAccess ? 'Assigned Staff' : 'Staff Assigned By Me'}</h3>
+                            <button 
+                                onClick={() => setIsAssignModalOpen(true)}
+                                className="text-sm bg-primary text-white px-3 py-1.5 rounded-md shadow hover:bg-primary-dark transition"
+                            >
+                                + Redirect / Assign Staff
+                            </button>
                         </div>
                         <div className="flex flex-col space-y-3">
                             <div className="flex flex-wrap items-center gap-2">
-                                {project.assigned_staff.filter(s => project.assigned_to?.includes(s.id)).map(staff => {
+                                {project.assigned_staff
+                                    .filter(s => project.assigned_to?.includes(s.id))
+                                    .filter(s => isFullAccess || project.assigned_by?.[s.id] === currentProfile.username)
+                                    .map(staff => {
                                     const staffAmount = project.assigned_amounts?.[staff.id];
                                     return (
                                     <div key={staff.id} className="flex items-center p-2 bg-gray-50 border rounded-lg">
@@ -289,13 +311,13 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
             </div>
 
             {/* Redirect / Assign Modal */}
-            {isAssignModalOpen && !isLeadGeneratorOnlyView && (
+            {isAssignModalOpen && (isFullAccess || isAssignedView) && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
                         <h2 className="text-xl font-bold mb-4">Redirect / Assign Project</h2>
                         <form onSubmit={handleAssignStaff}>
                             <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Select Developer / Staff</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Select Staff</label>
                                 <select 
                                     value={selectedStaffId} 
                                     onChange={e => setSelectedStaffId(e.target.value)}
@@ -320,7 +342,9 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                                     placeholder="e.g. 500"
                                     className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary p-2 border"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">This will show that you assigned them this project with this rate.</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {isFullAccess ? "This will show that you assigned them this project with this rate." : `This amount will be deducted from your allocation of ₹${myAmount || 0}.`}
+                                </p>
                             </div>
                             <div className="flex justify-end space-x-3">
                                 <button 

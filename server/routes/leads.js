@@ -63,6 +63,7 @@ router.post('/bulk-import', auth, async (req, res) => {
     `;
     notifyAllStaff(`Bulk Leads Imported (${insertedLeads.length})`, html, req.user ? req.user.id : null);
 
+    if (req.io) req.io.emit('leads_updated');
     res.status(201).json({ message: 'Leads imported successfully', count: insertedLeads.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -105,6 +106,7 @@ router.post('/', auth, async (req, res) => {
     `;
     notifyAllStaff(`New Lead Added: ${client_name}`, html, req.user ? req.user.id : null);
 
+    if (req.io) req.io.emit('leads_updated');
     res.status(201).json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -163,6 +165,7 @@ router.put('/:id', auth, async (req, res) => {
     `;
     notifyAllStaff(`Lead Updated: ${client_name}`, html, req.user ? req.user.id : null);
 
+    if (req.io) req.io.emit('leads_updated');
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -200,6 +203,7 @@ router.delete('/:id', auth, async (req, res) => {
         notifyAllStaff(`Lead Deleted: ${lead.client_name}`, html, req.user ? req.user.id : null);
     }
     
+    if (req.io) req.io.emit('leads_updated');
     res.json({ message: 'Lead deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -251,6 +255,7 @@ router.post('/bulk-delete', auth, async (req, res) => {
       `;
       notifyAllStaff(`Bulk Leads Deleted (${deletedLeads.length})`, html, req.user ? req.user.id : null);
     }
+    if (req.io) req.io.emit('leads_updated');
     res.json({ message: 'Leads deleted successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -300,6 +305,7 @@ router.post('/:id/convert', auth, async (req, res) => {
     `;
     notifyAllStaff(`Lead Converted to Client: ${lead.client_name}`, html, req.user ? req.user.id : null);
 
+    if (req.io) req.io.emit('leads_updated');
     res.json({ message: 'Lead converted to Client successfully' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

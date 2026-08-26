@@ -125,6 +125,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
 
   const { currentProfile } = usePermissions();
 
+  const isAdmin = currentProfile?.role === 'Admin' || currentProfile?.role === 'Administrator';
+  const isCreator = currentProfile && projectToEdit && projectToEdit.created_by === currentProfile.id;
+  const isRestricted = !!projectToEdit && !isAdmin && !isCreator;
+
   const handleAssigneeChange = (profileId: string) => {
     const isAdding = !assignedTo.includes(profileId);
     setAssignedTo(prev => 
@@ -176,45 +180,45 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={projectToEdit ? "Edit Project" : "Create New Project"}>
       <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-        <InputField label="Project Name" value={name} onChange={(e: any) => setName(e.target.value)} required />
+        <InputField label="Project Name" value={name} onChange={(e: any) => setName(e.target.value)} required disabled={isRestricted} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField label="Category" value={category} onChange={(e: any) => setCategory(e.target.value)} />
-            <InputField label="Tags (comma-separated)" value={tags} onChange={(e: any) => setTags(e.target.value)} placeholder="e.g., html, css, react" />
+            <InputField label="Category" value={category} onChange={(e: any) => setCategory(e.target.value)} disabled={isRestricted} />
+            <InputField label="Tags (comma-separated)" value={tags} onChange={(e: any) => setTags(e.target.value)} placeholder="e.g., html, css, react" disabled={isRestricted} />
         </div>
         <div>
             <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" rows={3}></textarea>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} disabled={isRestricted} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" rows={3}></textarea>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Client Name</label>
-              <select value={clientName} onChange={(e) => setClientName(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-white">
+              <select value={clientName} onChange={(e) => setClientName(e.target.value)} disabled={isRestricted} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-white">
                  <option value="">-- Select Client --</option>
                  {clientList.map(c => <option key={c.id} value={c.username}>{c.username}</option>)}
               </select>
             </div>
-            <InputField label="Client Mobile" value={clientMobile} onChange={(e: any) => setClientMobile(e.target.value)} />
+            <InputField label="Client Mobile" value={clientMobile} onChange={(e: any) => setClientMobile(e.target.value)} disabled={isRestricted} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <InputField label="Total Cost" type="number" value={totalCost} onChange={(e: any) => setTotalCost(e.target.value)} placeholder="e.g., 5000" />
-            <InputField label="Start Date" type="date" value={startDate} onChange={(e: any) => setStartDate(e.target.value)} />
-            <InputField label="End Date" type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} />
+            <InputField label="Total Cost" type="number" value={totalCost} onChange={(e: any) => setTotalCost(e.target.value)} placeholder="e.g., 5000" disabled={isRestricted} />
+            <InputField label="Start Date" type="date" value={startDate} onChange={(e: any) => setStartDate(e.target.value)} disabled={isRestricted} />
+            <InputField label="End Date" type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} disabled={isRestricted} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Lead Generator</label>
-              <select value={leadGeneratorId} onChange={(e) => setLeadGeneratorId(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-white">
+              <select value={leadGeneratorId} onChange={(e) => setLeadGeneratorId(e.target.value)} disabled={isRestricted} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm bg-white">
                  <option value="">-- Select Lead Generator --</option>
                  {staffList.map(s => <option key={s.id} value={s.id}>{s.username}</option>)}
               </select>
             </div>
-            <InputField label="Lead Generator Incentive" type="number" value={leadGeneratorIncentive} onChange={(e: any) => setLeadGeneratorIncentive(e.target.value)} placeholder="Amount (e.g., 1000)" />
+            <InputField label="Lead Generator Incentive" type="number" value={leadGeneratorIncentive} onChange={(e: any) => setLeadGeneratorIncentive(e.target.value)} placeholder="Amount (e.g., 1000)" disabled={isRestricted} />
         </div>
         <div>
             <label className="block text-sm font-medium text-gray-700">Project Asset Link/Detail (or pick folder)</label>
             <div className="flex space-x-2 mt-1">
-                <input value={projectAsset} onChange={e => setProjectAsset(e.target.value)} placeholder="URL or folder name" className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
-                <select onChange={e => setProjectAsset(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary bg-white sm:text-sm">
+                <input value={projectAsset} onChange={e => setProjectAsset(e.target.value)} disabled={isRestricted} placeholder="URL or folder name" className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" />
+                <select onChange={e => setProjectAsset(e.target.value)} disabled={isRestricted} className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary bg-white sm:text-sm">
                     <option value="">Select Folder...</option>
                     {folders.map(f => (
                         <option key={f.name} value={`${API_BASE.replace('/api', '')}/?page=file-manager&folder=${encodeURIComponent(f.name)}`}>{f.original_name || f.name}</option>
@@ -227,7 +231,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
             <div className="flex justify-between items-end mb-2">
                 <label className="block text-sm font-medium text-gray-700">Assigned To (with Flat Amount ₹)</label>
                 <div className="w-48">
-                    <SelectField label="" value={selectedRole} onChange={(e: any) => setSelectedRole(e.target.value)} options={['All', ...uniqueRoles]} />
+                    <SelectField label="" value={selectedRole} onChange={(e: any) => setSelectedRole(e.target.value)} options={['All', ...uniqueRoles]} disabled={isRestricted} />
                 </div>
             </div>
             <div className="p-2 border rounded-md max-h-48 overflow-y-auto bg-gray-50">
@@ -237,7 +241,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
                         id="select-all-staff" 
                         onChange={handleSelectAll} 
                         checked={filteredStaffList.length > 0 && assignedTo.length === filteredStaffList.length}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        disabled={isRestricted}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
                     />
                     <label htmlFor="select-all-staff" className="ml-3 block text-sm font-medium text-gray-700">Select All {selectedRole !== 'All' ? selectedRole : 'Staff'}</label>
                 </div>
@@ -254,7 +259,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
                                     value={staff.id}
                                     checked={isSelected}
                                     onChange={() => handleAssigneeChange(staff.id)}
-                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    disabled={isRestricted}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
                                 />
                                 <label htmlFor={`staff-assign-${staff.id}`} className="ml-3 block text-sm text-gray-700">{staff.username}</label>
                             </div>
@@ -267,7 +273,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
                                         placeholder="Amount" 
                                         value={assignedAmounts[staff.id] || ''} 
                                         onChange={(e) => handleAmountChange(staff.id, e.target.value)}
-                                        className="w-24 px-2 py-1 text-sm border border-gray-300 rounded"
+                                        disabled={isRestricted}
+                                        className="w-24 px-2 py-1 text-sm border border-gray-300 rounded disabled:bg-gray-100"
                                     />
                                 </div>
                             )}

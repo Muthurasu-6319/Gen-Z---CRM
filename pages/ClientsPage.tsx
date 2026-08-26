@@ -133,6 +133,7 @@ const ClientsPage: React.FC<{ title: string; setActivePage?: (page: string) => v
     if (!setActivePage) return;
     const url = new URL(window.location.href);
     url.searchParams.set('new_project_client', user.username);
+    url.searchParams.set('new_project_client_id', user.id.toString());
     if (user.mobile) url.searchParams.set('new_project_mobile', user.mobile);
     window.history.pushState({}, '', url.toString());
     setActivePage('projects');

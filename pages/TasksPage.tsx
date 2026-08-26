@@ -26,7 +26,7 @@ interface TaskWithAssignee extends Task {
 
 const ViewTaskModal: React.FC<{ isOpen: boolean; onClose: () => void; task: TaskWithAssignee | null; currentProfile: any; onStatusUpdate: (id: number, status: string) => void }> = ({ isOpen, onClose, task, currentProfile, onStatusUpdate }) => {
     if (!task) return null;
-    const canUpdateStatus = currentProfile?.role === 'Admin' || (currentProfile && task.assignee_id === currentProfile.id);
+    const canUpdateStatus = currentProfile && (task.assignee_id === currentProfile.id || task.created_by === currentProfile.id || currentProfile.role === 'Admin');
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={task.title}>
@@ -297,7 +297,7 @@ const TasksPage: React.FC<{ title: string }> = ({ title }) => {
         onSave={handleSaveTask} 
         taskToEdit={taskToEdit} 
         isSaving={isSaving} 
-        isAssigneeOnly={taskToEdit && currentProfile ? (taskToEdit.assignee_id === currentProfile.id && currentProfile.role !== 'Admin' && currentProfile.id !== taskToEdit.created_by) : false}
+        isAssigneeOnly={taskToEdit && currentProfile ? (currentProfile.id !== taskToEdit.created_by) : false}
       />
       <ViewTaskModal isOpen={!!viewingTask} onClose={() => setViewingTask(null)} task={viewingTask} currentProfile={currentProfile} onStatusUpdate={handleUpdateStatus} />
     </>

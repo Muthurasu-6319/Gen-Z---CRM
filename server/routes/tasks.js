@@ -17,12 +17,8 @@ router.get('/', auth, async (req, res) => {
         assignee_name: r.assignee_id ? profileMap[r.assignee_id] : null
     }));
 
-    if (req.user.role !== 'Admin') {
-        const myTasks = rowsWithNames.filter(r => r.assignee_id === req.user.id || r.created_by === req.user.id);
-        res.json(myTasks);
-    } else {
-        res.json(rowsWithNames);
-    }
+    const myTasks = rowsWithNames.filter(r => r.assignee_id === req.user.id || r.created_by === req.user.id);
+    res.json(myTasks);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -65,8 +61,8 @@ router.put('/:id', auth, async (req, res) => {
       status
     };
 
-    // If user is just the assignee (not Admin and not Creator), they can ONLY change status.
-    const isJustAssignee = req.user.id === oldTask.assignee_id && req.user.id !== oldTask.created_by && req.user.role !== 'Admin';
+    // Only the creator can edit fields other than status. Everyone else (even admins/assignees) can only change status.
+    const isJustAssignee = req.user.id !== oldTask.created_by;
     if (isJustAssignee) {
       updateData.title = oldTask.title;
       updateData.description = oldTask.description;
@@ -106,7 +102,13 @@ router.put('/:id', auth, async (req, res) => {
 
 router.delete('/:id', auth, async (req, res) => {
   try {
+    const oldTask = await getDoc('tasks', req.params.id);
     await deleteDoc('tasks', req.params.id);
+    
+    if (oldTask && oldTask.assignee_id) {
+       notifyAssigneeDeleted(oldTask.assignee_id, oldTask, req.user.id);
+    }
+    
     res.json({ message: 'Task deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -214,6 +216,49 @@ async function notifyAssigner(assignerId, task, assigneeId) {
     });
   } catch (e) {
     console.error('Failed to notify task assigner', assignerId, e);
+  }
+}
+
+async function notifyAssigneeDeleted(userId, task, assignerId) {
+  if (!process.env.GMAIL_USER) return;
+  const transporter = await createTransporter();
+  try {
+    const user = await getDoc('profiles', userId);
+    if (!user || !user.email) return;
+
+    let assignerName = 'Admin';
+    if (assignerId) {
+        const assigner = await getDoc('profiles', assignerId);
+        if (assigner) assignerName = assigner.username;
+    }
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #ef4444;">Task Deleted</h2>
+        <p>Hello <strong>${user.username}</strong>,</p>
+        <p>A task assigned to you has been deleted by <strong>${assignerName}</strong>.</p>
+        
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #111827;">Task Details</h3>
+          <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <tr><td style="padding: 4px 0;"><strong>Title:</strong></td><td>${task.title}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Deleted By:</strong></td><td>${assignerName}</td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Priority:</strong></td><td><span style="color: ${task.priority === 'High' ? '#dc2626' : task.priority === 'Medium' ? '#d97706' : '#059669'};">${task.priority}</span></td></tr>
+            <tr><td style="padding: 4px 0;"><strong>Status:</strong></td><td>${task.status}</td></tr>
+          </table>
+          ${task.description ? `<div style="margin-top: 15px;"><strong>Description:</strong><p style="margin-top: 5px; color: #555;">${task.description}</p></div>` : ''}
+        </div>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
+      to: user.email,
+      subject: `Task Deleted: ${task.title}`,
+      html,
+    });
+  } catch (e) {
+    console.error('Failed to notify task assignee about deletion', userId, e);
   }
 }
 

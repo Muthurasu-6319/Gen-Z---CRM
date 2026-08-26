@@ -1,7 +1,8 @@
 // src/pages/LeadsPage.tsx
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { api } from '../apiClient';
+import { api, getStoredToken, API_BASE } from '../apiClient';
+import { io } from 'socket.io-client';
 import { PlusIcon, PencilIcon, TrashIcon, UploadIcon, DownloadIcon } from '../components/icons/Icons';
 import LeadModal from '../components/leads/LeadModal';
 import { Lead } from '../types';
@@ -43,7 +44,18 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchLeadsAndUsers(); }, [fetchLeadsAndUsers]);
+  useEffect(() => { 
+    fetchLeadsAndUsers(); 
+    
+    const socket = io(API_BASE, { auth: { token: getStoredToken() } });
+    socket.on('leads_updated', () => {
+        fetchLeadsAndUsers();
+    });
+
+    return () => {
+        socket.disconnect();
+    };
+  }, [fetchLeadsAndUsers]);
 
   const handleSaveLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'created_by'>) => {
     setIsSaving(true);
