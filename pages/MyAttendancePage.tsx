@@ -12,14 +12,15 @@ interface MyAttendance extends AttendanceRecord {
 const MyAttendancePage: React.FC<{ title: string }> = ({ title }) => {
     const { currentProfile } = usePermissions();
     const [records, setRecords] = useState<MyAttendance[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
 
     const fetchMyAttendance = useCallback(async () => {
         if (!currentProfile) return;
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
-            const data = await api.get('/api/attendance');
-            setRecords(data);
+            const data = await api.get<any[]>('/api/attendance');
+            const myData = data.filter(r => r.profile_id === currentProfile.id);
+            setRecords(myData);
         } catch (err) {
             console.error("Error fetching my attendance:", err);
         }
@@ -29,6 +30,16 @@ const MyAttendancePage: React.FC<{ title: string }> = ({ title }) => {
     useEffect(() => {
         fetchMyAttendance();
     }, [fetchMyAttendance]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchMyAttendance();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchMyAttendance]);
+
     
     // Simple page, no realtime needed for now as they control it from the header.
 

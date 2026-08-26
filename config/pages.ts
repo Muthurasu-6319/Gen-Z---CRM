@@ -53,9 +53,6 @@ export const ALL_PAGES: PageConfig[] = [
 
   // ── Team ────────────────────────────────────────────────────────────────
   { id: 'team-chat',        label: 'Team Chat',              group: 'Team' },
-  { id: 'chat-staff',       label: 'Chat → Staff Channels',  group: 'Team' },
-  { id: 'chat-client',      label: 'Chat → Client Channels', group: 'Team' },
-  { id: 'chat-dm',          label: 'Chat → Direct Messages', group: 'Team' },
   { id: 'support-ticket',   label: 'Support Ticket',         group: 'Team' },
 
   // ── Admin-only (staffVisible: false = hidden from Staff permissions) ────
@@ -84,4 +81,5 @@ export const PERMISSION_PARENT_MAP: Record<string, string> = {
   'mailbox-inbox':  'mailbox',
   'mail-templates': 'mailbox',
   'staff-attendance-detail': 'attendance',
+  'project-detail': 'projects',
 };

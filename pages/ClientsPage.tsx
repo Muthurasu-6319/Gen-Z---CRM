@@ -1,27 +1,29 @@
+import { toast } from 'sonner';
 import React, { useState, useCallback, useEffect } from 'react';
 import { api } from '../apiClient';
-import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, DocumentTextIcon, CalculatorIcon, ClockIcon, FolderIcon } from '../components/icons/Icons';
+import { PlusIcon, PencilIcon, TrashIcon, UserCircleIcon, DocumentTextIcon, CalculatorIcon, ClockIcon, FolderIcon, BriefcaseIcon } from '../components/icons/Icons';
 import CreateUserModal from '../components/users/CreateUserModal';
 import EditUserModal from '../components/users/EditUserModal';
 import { User, Project, Invoice } from '../types';
 import { usePermissions } from '../components/auth/PermissionsContext';
+import ProjectModal from '../components/projects/ProjectModal';
 
 const roleColors: { [key: string]: string } = {
   Client: 'bg-blue-100 text-blue-800',
 };
 
-const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
+const ClientsPage: React.FC<{ title: string; setActivePage?: (page: string) => void }> = ({ title, setActivePage }) => {
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [viewingClient, setViewingClient] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'purchases' | 'payments' | 'documents' | 'timeline'>('profile');
-  
   const [users, setUsers] = useState<User[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
   const [clientProjects, setClientProjects] = useState<Project[]>([]);
   const [clientInvoices, setClientInvoices] = useState<Invoice[]>([]);
-  
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { hasPermission, currentProfile } = usePermissions();
@@ -31,7 +33,7 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
   const canDelete = hasPermission('user-management', 'delete') || hasPermission('clients', 'delete');
 
   const fetchUsers = useCallback(async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     try {
       const data = await api.get<User[]>('/api/users');
       setUsers(data.filter(u => u.role === 'Client'));
@@ -41,6 +43,16 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchUsers();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchUsers]);
+
 
   const loadClientDetails = async (client: User) => {
       setViewingClient(client);
@@ -62,12 +74,12 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
     const clientData = { ...newUserData, role: 'Client' };
     api.post('/api/users', clientData)
       .then(() => {
-        alert('Client created successfully!');
+        toast.info('Client created successfully!');
         fetchUsers();
         setCreateModalOpen(false);
       })
       .catch((err: any) => {
-        alert(`Failed to create client: ${err.message}`);
+        toast.info(`Failed to create client: ${err.message}`);
       });
   }, [fetchUsers]);
 
@@ -78,8 +90,52 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
       fetchUsers();
       if (viewingClient?.id === userToDelete.id) setViewingClient(null);
     } catch (err: any) {
-      alert(`Failed to delete client: ${err.message}`);
+      toast.info(`Failed to delete client: ${err.message}`);
     }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.checked) {
+          setSelectedUsers(new Set(users.map(u => u.id!)));
+      } else {
+          setSelectedUsers(new Set());
+      }
+  };
+
+  const handleSelectOne = (userId: number, checked: boolean) => {
+      const newSet = new Set(selectedUsers);
+      if (checked) {
+          newSet.add(userId);
+      } else {
+          newSet.delete(userId);
+      }
+      setSelectedUsers(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+      if (selectedUsers.size === 0) return;
+      if (window.confirm(`Are you sure you want to permanently delete ${selectedUsers.size} clients?`)) {
+          setIsSaving(true);
+          try {
+              await api.post('/api/users/bulk-delete', { userIds: Array.from(selectedUsers) });
+              toast.info('Clients deleted successfully!');
+              setSelectedUsers(new Set());
+              fetchUsers();
+          } catch (err: any) {
+              toast.info(`Error deleting clients: ${err.message || err}`);
+          } finally {
+              setIsSaving(false);
+          }
+      }
+  };
+
+  const handleConvertToProject = (user: User) => {
+    if (!setActivePage) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('new_project_client', user.username);
+    if (user.mobile) url.searchParams.set('new_project_mobile', user.mobile);
+    window.history.pushState({}, '', url.toString());
+    setActivePage('projects');
   };
 
   // --- RENDERS ---
@@ -271,11 +327,18 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
             <h1 className="text-3xl font-bold text-text-primary">Customers / Clients</h1>
             <p className="text-text-secondary mt-1">Manage all your client relationships and histories here.</p>
         </div>
-        {canCreate && (
-            <button onClick={() => setCreateModalOpen(true)} className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-all">
-                <PlusIcon className="h-5 w-5 mr-2" /> Add New Client
-            </button>
-        )}
+        <div className="flex space-x-3">
+            {canDelete && selectedUsers.size > 0 && (
+                <button onClick={handleBulkDelete} disabled={isSaving} className="px-3 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-50 flex items-center shadow-sm transition-all">
+                    <TrashIcon className="h-4 w-4 mr-2" /> Delete Selected ({selectedUsers.size})
+                </button>
+            )}
+            {canCreate && (
+                <button onClick={() => setCreateModalOpen(true)} className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm transition-all">
+                    <PlusIcon className="h-5 w-5 mr-2" /> Add New Client
+                </button>
+            )}
+        </div>
       </div>
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-lg overflow-hidden">
@@ -285,15 +348,21 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Client Name & Email</th>
+                <th className="px-4 py-4 text-left"><input type="checkbox" onChange={handleSelectAll} checked={users.length > 0 && selectedUsers.size === users.length} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-600"/></th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Client</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Requirements</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Mobile</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Services</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Location</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Notes</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {users.map((user) => (
                 <tr key={user.id} className="hover:bg-blue-50/50 transition-colors cursor-pointer" onClick={() => loadClientDetails(user)}>
+                  <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedUsers.has(user.id!)} onChange={(e) => handleSelectOne(user.id!, e.target.checked)} className="h-4 w-4 rounded text-blue-600 focus:ring-blue-600"/>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-lg">
@@ -305,14 +374,12 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
                         </div>
                     </div>
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-600 max-w-sm truncate">{user.requirements || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.mobile || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-1 flex-wrap max-w-[200px]">
-                        {user.services?.slice(0,2).map(s => <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">{s}</span>)}
-                        {user.services && user.services.length > 2 && <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">+{user.services.length - 2}</span>}
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{user.location || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title={user.notes || ''}>{user.notes || '-'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => handleConvertToProject(user)} className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition" title="Convert to Project"><BriefcaseIcon className="h-5 w-5" /></button>
                     {canEdit   && <button onClick={() => { setSelectedUser(user); setEditModalOpen(true); }} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition"><PencilIcon className="h-5 w-5" /></button>}
                     {canDelete && currentProfile?.id !== user.id && <button onClick={() => handleDeleteUser(user)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition"><TrashIcon className="h-5 w-5" /></button>}
                   </td>
@@ -324,7 +391,7 @@ const ClientsPage: React.FC<{ title: string }> = ({ title }) => {
         </div>}
       </div>
 
-      {isCreateModalOpen && <CreateUserModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} onCreateUser={handleCreateUser} />}
+      {isCreateModalOpen && <CreateUserModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} onCreateUser={handleCreateUser} defaultRole="Client" />}
       {isEditModalOpen  && <EditUserModal isOpen={isEditModalOpen} onClose={() => { setSelectedUser(null); setEditModalOpen(false); }} user={selectedUser} onUserUpdated={fetchUsers} />}
     </>
   );

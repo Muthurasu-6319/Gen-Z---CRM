@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, deleteDoc, getDoc } = require('../firebase-admin');
+const { getCollection, addDoc, deleteDoc, getDoc } = require('../mongodb-admin');
 
 const uploadDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });

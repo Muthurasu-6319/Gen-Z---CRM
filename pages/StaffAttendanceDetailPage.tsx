@@ -37,13 +37,13 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
     const [logs, setLogs] = useState<DailyLog[]>([]);
     const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
     const [staffName, setStaffName] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const { hasPermission } = usePermissions();
     const canDelete = hasPermission('attendance', 'delete');
 
     const fetchDetails = useCallback(async () => {
         if (!profileId) return;
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const [profiles, attendance, allLeaves] = await Promise.all([
                 api.get('/api/users'),
@@ -73,6 +73,16 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
     }, [profileId]);
 
     useEffect(() => { fetchDetails(); }, [fetchDetails]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchDetails();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchDetails]);
+
 
     const handleDeleteEntry = async (entryId: number) => {
         if (!window.confirm("Are you sure you want to delete this entire entry (including breaks)?")) return;

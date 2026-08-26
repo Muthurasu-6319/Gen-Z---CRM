@@ -1,7 +1,7 @@
 // server/routes/client-reports.js
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../mongodb-admin');
 
 // GET /api/client-reports
 router.get('/', auth, async (req, res) => {

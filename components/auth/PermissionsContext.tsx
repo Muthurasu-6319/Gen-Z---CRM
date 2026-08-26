@@ -44,11 +44,8 @@ export const PermissionsProvider: React.FC<{ children: ReactNode }> = ({ childre
   const hasPermission = useCallback((pageId: string, action: Action): boolean => {
     if (!currentProfile) return false;
     if (pageId === 'profile' || pageId === 'dashboard') return true; // Everyone can see their profile and dashboard
-    if (currentProfile.role === 'Admin') return true;
-    if (currentProfile.role === 'Client') {
-        const clientBasePages = ['dashboard', 'web-dashboard', 'app-dashboard', 'marketing-dashboard', 'seo-dashboard', 'software-dashboard'];
-        if (clientBasePages.includes(pageId)) return true;
-    }
+    if (currentProfile.email === 'admin@gmail.com') return true; // Master fallback
+
     
     // For Staff, Clients and any Custom Roles
     if (!currentProfile.permissions) return false;

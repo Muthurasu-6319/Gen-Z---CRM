@@ -174,7 +174,7 @@ const LayoutContent: React.FC = () => {
     const CurrentPage = canViewPage ? (pages[pageId] || DashboardPage) : AccessDeniedPage;
     
     // Special props thevai padura pages
-    if (pageId === 'attendance' || pageId === 'projects') {
+    if (pageId === 'attendance' || pageId === 'projects' || pageId === 'clients') {
         pageProps.setActivePage = handleSetActivePage;
     }
 

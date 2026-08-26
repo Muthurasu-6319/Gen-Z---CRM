@@ -27,7 +27,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ title }) => {
   const isAdmin = currentProfile?.role === 'Admin';
   const [stats, setStats] = useState(initialStats);
   const [activities, setActivities] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ title }) => {
   // v-- ITHU THAAN PUDHU DATA FETCHING LOGIC --v
   useEffect(() => {
     const fetchDashboardData = async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const [leads, projects, tasks, products, notifications] = await Promise.all([
                 api.get('/api/leads').catch(() => []),

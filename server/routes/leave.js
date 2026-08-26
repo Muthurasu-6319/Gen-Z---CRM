@@ -1,7 +1,7 @@
 // server/routes/leave.js
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../mongodb-admin');
 
 router.get('/', auth, async (req, res) => {
   try {

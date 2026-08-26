@@ -151,6 +151,6 @@ const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`\n✅  CRM API Server running on http://localhost:${PORT}`);
   console.log(`   Socket.IO ready for real-time chat`);
-  console.log(`   Database: Firebase Firestore (Emulator Wrapper)\n`);
+  console.log(`   Database: MongoDB Atlas (Mongoose Model System)\n`);
 });
 

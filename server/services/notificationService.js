@@ -1,15 +1,15 @@
-const { getDoc, findOne, addDoc } = require('../firebase-admin');
+const { getDoc, findOne, addDoc } = require('../mongodb-admin');
 const { createTransporter } = require('../mailer');
 require('dotenv').config();
 
 // Helper to send email safely
 async function sendNotification(toEmail, subject, html) {
   if (!toEmail || toEmail === 'admin-env') return;
-  if (!process.env.RESEND_API_KEY) return;
+  if (!process.env.GMAIL_USER) return;
   try {
     const transporter = await createTransporter();
     await transporter.sendMail({
-      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
       to: toEmail,
       subject,
       html
@@ -22,7 +22,7 @@ async function sendNotification(toEmail, subject, html) {
 // Get all admin profiles
 async function getAdminProfiles() {
   try {
-    const { getCollection } = require('../firebase-admin');
+    const { getCollection } = require('../mongodb-admin');
     const profiles = await getCollection('profiles');
     return profiles.filter(p => p.role === 'Admin');
   } catch (err) {
@@ -41,13 +41,35 @@ async function getUserEmail(userId) {
   }
 }
 
-// Helper to format data into HTML table for emails
-function formatDataHtml(data) {
+// Helper to format data into HTML table for emails, resolving IDs to usernames
+async function formatDataHtml(data) {
   if (!data) return '<p>No data provided.</p>';
   let rows = '';
+  
+  // Fields to exclude from the email table
+  const excludeFields = ['id', 'created_at', 'updated_at', '_seconds', '_nanoseconds'];
+  
+  // Fields that are user IDs and need to be resolved to names
+  const userFields = ['created_by', 'lead_generator_id', 'assigned_to', 'staff_id', 'assignee_id', 'client_id', 'profile_id'];
+  
   for (const [key, value] of Object.entries(data)) {
     if (typeof value === 'object') continue; // skip nested arrays/objects for simplicity
-    rows += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><b>${key}</b></td><td style="padding: 8px; border: 1px solid #ddd;">${value}</td></tr>`;
+    if (excludeFields.includes(key)) continue;
+    
+    let displayValue = value;
+    let displayKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // e.g., 'created_by' -> 'Created By'
+    
+    // Resolve user IDs to Names
+    if (userFields.includes(key) && typeof value === 'string' && value.trim() !== '') {
+       try {
+           const user = await getDoc('profiles', value);
+           if (user && user.username) {
+               displayValue = user.username;
+           }
+       } catch(e) {}
+    }
+    
+    rows += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><b>${displayKey}</b></td><td style="padding: 8px; border: 1px solid #ddd;">${displayValue}</td></tr>`;
   }
   return `<table style="border-collapse: collapse; width: 100%; max-width: 600px;">${rows}</table>`;
 }
@@ -60,8 +82,8 @@ function formatDataHtml(data) {
  * @param {object} prevData - the full document data (before change, mainly for UPDATE/DELETE)
  */
 async function notifySystemChange(action, collectionName, data, prevData = null) {
-  // 1. Exclude high-volume or noisy collections from Global Admin Alerts
-  if (['messages', 'roles', 'settings', 'notifications'].includes(collectionName)) {
+  // 1. Exclude high-volume or noisy collections, as well as ones with custom dedicated emails
+  if (['messages', 'roles', 'settings', 'notifications', 'projects', 'tasks'].includes(collectionName)) {
       return; 
   }
 
@@ -90,7 +112,7 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
                const html = `
                    <h2 style="color: #4F46E5;">New Assignment: ${collectionName.toUpperCase()}</h2>
                    <p>You have been assigned to a new record in the CRM.</p>
-                   ${formatDataHtml(data)}
+                   ${await formatDataHtml(data)}
                    <br/>
                    <p>Please log in to the CRM to view your new task/project.</p>
                `;
@@ -157,7 +179,7 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
                const ownerHtml = `
                    <h2 style="color: #4F46E5;">Leave Request ${status}</h2>
                    <p>Your leave request has been updated by an Admin.</p>
-                   ${formatDataHtml(targetData)}
+                   ${await formatDataHtml(targetData)}
                `;
                await sendNotification(user.email, ownerSubject, ownerHtml);
                
@@ -179,7 +201,7 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
                    const ownerHtml = `
                        <h2 style="color: #4F46E5;">Ticket Status: ${status}</h2>
                        <p>Your support ticket has been updated by our team.</p>
-                       ${formatDataHtml(targetData)}
+                       ${await formatDataHtml(targetData)}
                    `;
                    await sendNotification(user.email, ownerSubject, ownerHtml);
                    
@@ -199,16 +221,17 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
            <h2 style="color: #EF4444;">System Activity Alert</h2>
            <p style="font-size: 16px;">${headline}</p>
            <h3>Record Details:</h3>
-           ${formatDataHtml(targetData)}
+           ${await formatDataHtml(targetData)}
            <br/>
            <p style="color: #6B7280; font-size: 12px;">You are receiving this because you are the CRM Administrator.</p>
        `;
        
        // Send to DB Admins
        for (const admin of adminProfiles) {
-           if (admin.email) {
-               await sendNotification(admin.email, subject, html);
-           }
+           // We commented out the email alert based on user request: "intha alart mailum poga venam"
+           // if (admin.email) {
+           //     await sendNotification(admin.email, subject, html);
+           // }
            await addDoc('notifications', {
                recipient_profile_id: admin.id,
                message: headline.replace(/<[^>]*>?/gm, ''), // Strip HTML tags for clean text
@@ -219,9 +242,9 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
        }
        
        // Fallback to ENV admin email if no DB admins found
-       if (adminProfiles.length === 0 && process.env.ADMIN_EMAIL) {
-           await sendNotification(process.env.ADMIN_EMAIL, subject, html);
-       }
+       // if (adminProfiles.length === 0 && process.env.ADMIN_EMAIL) {
+       //     await sendNotification(process.env.ADMIN_EMAIL, subject, html);
+       // }
     }
   } catch (err) {
       console.error('[NotificationService] Error processing notification:', err);

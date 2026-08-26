@@ -12,7 +12,7 @@ router.get('/performance', auth, async (req, res) => {
   }
 
   try {
-    const { getDoc, getCollection } = require('../firebase-admin');
+    const { getDoc, getCollection } = require('../mongodb-admin');
     const profile = await getDoc('profiles', targetId);
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
@@ -99,7 +99,7 @@ router.get('/full_report/:profile_id', auth, async (req, res) => {
   if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Access denied' });
 
   try {
-    const { getDoc, getCollection } = require('../firebase-admin');
+    const { getDoc, getCollection } = require('../mongodb-admin');
     const profile = await getDoc('profiles', targetId);
     if (!profile) return res.status(404).json({ error: 'Profile not found' });
 

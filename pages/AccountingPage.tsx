@@ -23,7 +23,7 @@ const AccountingPage: React.FC<{ title: string }> = ({ title }) => {
     const [transactions, setTransactions] = useState<AccountingTransaction[]>([]);
     const [summary, setSummary] = useState<MonthlySummary>({ total_income: 0, total_expense: 0 });
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<AccountingTransaction | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -33,7 +33,7 @@ const AccountingPage: React.FC<{ title: string }> = ({ title }) => {
     const canDelete = hasPermission('accounting', 'delete');
 
     const fetchDataForMonth = useCallback(async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const data = await api.get('/api/accounting');
             // Filter by month
@@ -60,6 +60,16 @@ const AccountingPage: React.FC<{ title: string }> = ({ title }) => {
     useEffect(() => {
         fetchDataForMonth();
     }, [fetchDataForMonth]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchDataForMonth();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchDataForMonth]);
+
 
     const handleSaveTransaction = async (formData: FormData) => {
         setIsSaving(true);

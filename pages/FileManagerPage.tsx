@@ -48,7 +48,7 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
         initialFolder === 'root' ? [] : initialFolder.split('/')
     );
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'grid' | 'list'>('grid');
     const [searchTerm, setSearchTerm] = useState('');
     const [isDragging, setIsDragging] = useState(false);
@@ -63,7 +63,7 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
     const canDelete = hasPermission('file-manager', 'delete');
 
     const fetchItems = useCallback(async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const data = await api.get<FileItem[]>(`/api/files?folder=${encodeURIComponent(currentFolder)}`);
             setItems(data || []);
@@ -75,6 +75,16 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
     }, [currentFolder]);
 
     useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchItems();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchItems]);
+
 
     const updateUrl = (folder: string) => {
         const url = new URL(window.location.href);
@@ -94,7 +104,7 @@ const FileManagerPage: React.FC<{ title: string }> = ({ title }) => {
         e.preventDefault();
         if (!canCreate || !newFolderInput.trim()) return;
         
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             await api.post('/api/files/folder', { folder: currentFolder, name: newFolderInput.trim() });
             setNewFolderInput('');

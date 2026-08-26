@@ -20,7 +20,7 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
   const { currentProfile, hasPermission } = usePermissions();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
@@ -83,7 +83,7 @@ const TeamChatPage: React.FC<{ title: string }> = ({ title }) => {
   // Handle Room Change
   useEffect(() => {
     if (!currentProfile || !currentRoom) return;
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
 
     // Fetch history via REST for current room
     api.get<Message[]>(`/api/messages?room_id=${currentRoom}`)

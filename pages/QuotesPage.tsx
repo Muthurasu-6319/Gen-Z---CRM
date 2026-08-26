@@ -10,7 +10,7 @@ import { usePermissions } from '../components/auth/PermissionsContext';
 const QuotesPage: React.FC<{ title: string }> = ({ title }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [quoteToEdit, setQuoteToEdit] = useState<Quote | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -20,7 +20,7 @@ const QuotesPage: React.FC<{ title: string }> = ({ title }) => {
   const canDelete = hasPermission('quotes', 'delete');
 
   const fetchQuotes = useCallback(async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     try {
       const data = await api.get('/api/quotes');
       let filtered = data || [];
@@ -35,6 +35,16 @@ const QuotesPage: React.FC<{ title: string }> = ({ title }) => {
   }, []);
 
   useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchQuotes();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchQuotes]);
+
 
   const handleSaveQuote = async (quoteData: Omit<Quote, 'id' | 'created_at' | 'created_by'>) => {
     setIsSaving(true);

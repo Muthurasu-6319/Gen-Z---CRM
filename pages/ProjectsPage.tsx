@@ -62,16 +62,37 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
     useEffect(() => {
         if (currentProfile) fetchProjects();
     }, [fetchProjects, currentProfile]);
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const newProjectClient = urlParams.get('new_project_client');
+        const newProjectMobile = urlParams.get('new_project_mobile');
+        
+        if (newProjectClient) {
+            setProjectToEdit({
+                name: `${newProjectClient}'s Project`,
+                client_name: newProjectClient,
+                client_mobile: newProjectMobile || ''
+            } as any);
+            setModalOpen(true);
+            
+            // Clean up URL parameters so it doesn't reopen on refresh
+            const url = new URL(window.location.href);
+            url.searchParams.delete('new_project_client');
+            url.searchParams.delete('new_project_mobile');
+            window.history.replaceState({}, '', url.toString());
+        }
+    }, []);
     
     const handleSaveProject = async (projectData: any) => {
         setIsSaving(true);
         let finalData: any = { ...projectData };
-        if (!projectToEdit && currentProfile) {
+        if ((!projectToEdit || !projectToEdit.id) && currentProfile) {
             finalData.created_by = currentProfile.id;
         }
         
         try {
-            if (projectToEdit) {
+            if (projectToEdit && projectToEdit.id) {
                 await api.put(`/api/projects/${projectToEdit.id}`, finalData);
             } else {
                 await api.post('/api/projects', finalData);
@@ -91,7 +112,7 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
         if (window.confirm(`Are you sure you want to delete ${selectedProjects.size} selected project(s)?`)) {
             const idsToDelete = Array.from(selectedProjects);
             try {
-                await Promise.all(idsToDelete.map(id => api.delete(`/api/projects/${id}`)));
+                await api.post('/api/projects/bulk-delete', { projectIds: idsToDelete });
                 setProjects(prev => prev.filter(p => !idsToDelete.includes(p.id)));
                 setSelectedProjects(new Set());
             } catch (err: any) {
@@ -137,8 +158,20 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
             if (currentProfile?.role === 'Client') {
                 return p.client_name === currentProfile.username;
             }
+            
+            const isAdmin = currentProfile?.role === 'Admin' || currentProfile?.role === 'Administrator';
+            
+            // Non-admins can only see projects if they are assigned or if they are the lead generator
+            if (!isAdmin) {
+                const isAssigned = currentProfile && p.assigned_to?.some((id: any) => String(id) === String(currentProfile.id));
+                const isLeadGenerator = currentProfile && p.lead_generator_id === currentProfile.id;
+                if (!isAssigned && !isLeadGenerator) {
+                    return false;
+                }
+            }
+
             const statusMatch = statusFilter === 'All' || p.status === statusFilter;
-            const assignedMatch = !assignedFilter || (currentProfile && p.assigned_to?.includes(currentProfile.id));
+            const assignedMatch = !assignedFilter || (currentProfile && p.assigned_to?.some((id: any) => String(id) === String(currentProfile.id)));
             return statusMatch && assignedMatch;
         });
     }, [projects, statusFilter, assignedFilter, currentProfile]);
@@ -203,7 +236,7 @@ const ProjectsPage: React.FC<{ title: string; setActivePage: (page: string) => v
                                 <tr><td colSpan={7} className="p-8 text-center text-gray-500">No projects found.</td></tr>
                             ) : (
                                 filteredProjects.map(p => {
-                                    const isAssignedToMe = currentProfile && p.assigned_to?.includes(currentProfile.id);
+                                    const isAssignedToMe = currentProfile && p.assigned_to?.some((id: any) => String(id) === String(currentProfile.id));
                                     return (
                                         <tr key={p.id} className={`${isAssignedToMe ? 'bg-blue-50' : ''} ${selectedProjects.has(p.id) ? 'bg-indigo-100' : ''} hover:bg-gray-100`}>
                                             <td className="px-4 py-4">

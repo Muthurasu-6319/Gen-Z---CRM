@@ -3,7 +3,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
-const { findOne, getDoc, updateDoc } = require('../firebase-admin');
+const { findOne, getDoc, updateDoc } = require('../mongodb-admin');
 const { createTransporter } = require('../mailer');
 
 // POST /api/auth/login
@@ -12,17 +12,31 @@ router.post('/login', async (req, res) => {
   if (!email || !password)
     return res.status(400).json({ error: 'Email and password required' });
 
-  // Built-in env admin fallback
-  if (process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
-    const token = jwt.sign({ id: 'admin-env', email, role: 'Admin' }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    return res.json({ token, user: { id: 'admin-env', email, role: 'Admin', username: 'Administrator' } });
-  }
+  const safeEmail = email.trim();
+  console.log(`[LOGIN ATTEMPT] Email: '${safeEmail}', Password length: ${password.length}`);
 
   try {
-    const user = await findOne('profiles', 'email', email);
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    const user = await findOne('profiles', 'email', safeEmail);
+    
+    // Fallback to .env admin only if no database user matches
+    if (!user && process.env.ADMIN_EMAIL && safeEmail === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      console.log(`[LOGIN] Using .env admin fallback for ${safeEmail}`);
+      const token = jwt.sign({ id: 'admin-env', email: safeEmail, role: 'Admin' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ token, user: { id: 'admin-env', email: safeEmail, role: 'Admin', username: 'Administrator' } });
+    }
+
+    if (!user) {
+      console.log(`[LOGIN FAILED] User not found for email: '${safeEmail}'`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) {
+      console.log(`[LOGIN FAILED] Invalid password for email: '${safeEmail}'`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    console.log(`[LOGIN SUCCESS] User logged in: '${safeEmail}'`);
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
@@ -48,14 +62,15 @@ router.get('/me', authMiddleware, async (req, res) => {
     
     // Inject permissions from role if it's a custom role or Client
     if (profile.role && profile.role !== 'Admin') {
-      const { findOne } = require('../firebase-admin');
+      const { findOne } = require('../mongodb-admin');
       const roleDoc = await findOne('roles', 'name', profile.role);
       if (roleDoc && roleDoc.permissions) {
         profile.permissions = roleDoc.permissions;
       }
     }
 
-    const { password: _pw, ...safe } = profile;
+    const { password: _pw, raw_password, ...safe } = profile;
+    safe.password = raw_password || '';
     res.json(safe);
   } catch (err) {
     console.error('Me error:', err.message);
@@ -79,7 +94,7 @@ router.post('/forgot-password', async (req, res) => {
     
     const transporter = await createTransporter();
     await transporter.sendMail({
-      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
       to: email,
       subject: 'Password Reset OTP',
       html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">

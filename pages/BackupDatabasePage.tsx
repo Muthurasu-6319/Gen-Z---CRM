@@ -7,7 +7,7 @@ const BackupDatabasePage: React.FC<{ title?: string }> = ({ title = 'Backup & Re
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
 
   const handleExport = async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     setMessage({ type: 'info', text: 'Preparing database backup... This may take a few moments.' });
     
     try {
@@ -38,7 +38,7 @@ const BackupDatabasePage: React.FC<{ title?: string }> = ({ title = 'Backup & Re
     // Reset input so the same file can be uploaded again if needed
     e.target.value = '';
 
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     setMessage({ type: 'info', text: 'Reading backup file...' });
 
     try {

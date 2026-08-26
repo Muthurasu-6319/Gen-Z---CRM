@@ -30,7 +30,7 @@ export interface InvoiceWithRelations extends Invoice {
 const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
     const { hasPermission, currentProfile } = usePermissions();
     const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     
     const [invoiceToEdit, setInvoiceToEdit] = useState<InvoiceWithRelations | null>(null);
@@ -41,7 +41,7 @@ const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
     const canEdit = hasPermission('invoices', 'edit'); 
     
     const fetchInvoices = useCallback(async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const [invoicesData, profilesData] = await Promise.all([
                 api.get('/api/invoices'),
@@ -78,6 +78,16 @@ const InvoicesPage: React.FC<{ title: string }> = ({ title }) => {
     useEffect(() => {
         fetchInvoices();
     }, [fetchInvoices]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchInvoices();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchInvoices]);
+
 
     const handleDownloadInvoice = async (invoice: InvoiceWithRelations) => {
         const items = invoice.invoice_items;

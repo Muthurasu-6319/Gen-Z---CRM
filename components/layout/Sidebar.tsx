@@ -52,7 +52,7 @@ export const sidebarItems: SidebarItem[] = [
   { id: 'attendance', label: 'Staff Attendance', icon: Icons.ClockIcon, roles: ['Admin'] },
   { id: 'my-attendance', label: 'My Attendance', icon: Icons.UserCircleIcon, roles: ['Staff'] },
   { id: 'user-notes', label: 'User Notes', icon: Icons.DocumentTextIcon, roles: ['Admin', 'Staff'] },
-  { id: 'user-management', label: 'User Management', icon: Icons.UserGroupIcon, roles: ['Admin'] },
+  { id: 'user-management', label: 'Staff Management', icon: Icons.UserGroupIcon, roles: ['Admin'] },
   { id: 'clients', label: 'Clients / Customers', icon: Icons.UsersIcon, roles: ['Admin', 'Staff', 'Custom'] },
   { id: 'my-leave-requests', label: 'My Leave Requests', icon: Icons.CalendarDaysIcon, roles: ['Staff'] },
   { id: 'leave-management', label: 'Leave Management', icon: Icons.CalendarDaysIcon, roles: ['Admin'] },
@@ -115,9 +115,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activePage, setActivePage }) 
       if (item.roles.length === 1 && item.roles[0] === 'Client') return false; // Hide pure client portals
       
       let hasViewPermission = hasPermission(item.id, 'view');
-      if (item.id === 'team-chat') {
-        hasViewPermission = hasViewPermission || hasPermission('chat-staff', 'view') || hasPermission('chat-client', 'view') || hasPermission('chat-dm', 'view');
-      }
       if (!hasViewPermission) return false;
       
       if (searchTerm.trim() !== '' && !item.label.toLowerCase().includes(searchTerm.toLowerCase())) {

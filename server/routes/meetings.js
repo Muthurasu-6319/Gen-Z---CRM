@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { createTransporter } = require('../mailer');
-const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc } = require('../mongodb-admin');
 
 router.get('/', auth, async (req, res) => {
   try {
@@ -67,7 +67,7 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 async function notifyAssignees(userIds, meeting) {
-  if (!process.env.RESEND_API_KEY) return;
+  if (!process.env.GMAIL_USER) return;
   const transporter = await createTransporter();
   for (const userId of userIds) {
     try {
@@ -86,7 +86,7 @@ async function notifyAssignees(userIds, meeting) {
         </div>
       `;
       await transporter.sendMail({
-        from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+        from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
         to: user.email,
         subject: `Meeting Invite: ${meeting.title}`,
         html

@@ -1,7 +1,7 @@
 // server/routes/roles.js
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, updateDoc, deleteDoc, findOne } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, findOne } = require('../mongodb-admin');
 
 // GET all roles
 router.get('/', auth, async (req, res) => {
@@ -16,8 +16,9 @@ router.get('/', auth, async (req, res) => {
 // POST new role
 router.post('/', auth, async (req, res) => {
   if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
-  const { name, permissions } = req.body;
+  let { name, permissions } = req.body;
   if (!name) return res.status(400).json({ error: 'Role name required' });
+  name = name.toUpperCase();
   
   try {
     const existing = await findOne('roles', 'name', name);
@@ -33,7 +34,8 @@ router.post('/', auth, async (req, res) => {
 // PUT update role
 router.put('/:id', auth, async (req, res) => {
   if (req.user.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
-  const { name, permissions } = req.body;
+  let { name, permissions } = req.body;
+  if (name) name = name.toUpperCase();
   try {
     const doc = await updateDoc('roles', req.params.id, { name, permissions });
     res.json(doc);

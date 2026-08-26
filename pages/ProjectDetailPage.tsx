@@ -27,7 +27,7 @@ interface ProjectDetailPageProps {
 const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId, setActivePage }) => {
     const { currentProfile } = usePermissions();
     const [project, setProject] = useState<ProjectDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     
     // Redirect / Assign Modal States
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -38,7 +38,7 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
 
     const fetchProjectDetails = useCallback(async () => {
         if (!projectId) return;
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
 
         try {
             const projectData = await api.get(`/api/projects/${projectId}`);
@@ -81,9 +81,12 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
     if (loading) return <div className="p-8 text-center">Loading project details...</div>;
     if (!project) return <div className="p-8 text-center text-red-500">Project not found.</div>;
 
-    const isAdmin = currentProfile?.role === 'Admin';
+    const isAdmin = currentProfile?.role === 'Admin' || currentProfile?.role === 'Administrator';
     const isAssignedToMe = currentProfile && project.assigned_to?.includes(currentProfile.id);
     const myAmount = isAssignedToMe && project.assigned_amounts ? project.assigned_amounts[currentProfile.id] : null;
+    
+    // Determine if the current user is ONLY the lead generator (and not an admin)
+    const isLeadGeneratorOnlyView = !isAdmin && currentProfile?.id === project.lead_generator_id;
 
     const handleAssignStaff = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -145,11 +148,13 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     )}
                 </div>
                 
-                <div className="mt-2 text-sm text-gray-500">
-                    Category: <span className="font-medium text-gray-700">{project.category || 'N/A'}</span>
-                </div>
+                {!isLeadGeneratorOnlyView && (
+                    <div className="mt-2 text-sm text-gray-500">
+                        Category: <span className="font-medium text-gray-700">{project.category || 'N/A'}</span>
+                    </div>
+                )}
 
-                {project.description && (
+                {!isLeadGeneratorOnlyView && project.description && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg text-gray-700">
                         <h3 className="font-semibold text-gray-600 mb-1">Description</h3>
                         <p className="whitespace-pre-wrap">{project.description}</p>
@@ -165,23 +170,25 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                         <h3 className="font-semibold text-gray-600">Client Mobile</h3>
                         <p>{project.client_mobile || 'N/A'}</p>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-gray-600">Total Cost</h3>
-                        <p>{project.total_cost !== undefined && project.total_cost !== null ? `₹${project.total_cost}` : 'N/A'}</p>
-                        
-                        {/* Custom Percentage Amount Display */}
-                        {!isAdmin && myAmount !== null && myAmount !== undefined && (
-                             <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
-                                 <strong>My Allocated Amount:</strong><br/>
-                                 ₹{myAmount}
-                                 {project.assigned_by && project.assigned_by[currentProfile.id] && (
-                                     <div className="text-xs mt-1 text-green-700 opacity-80">
-                                         Assigned By: {project.assigned_by[currentProfile.id]}
-                                     </div>
-                                 )}
-                             </div>
-                        )}
-                    </div>
+                    {!isLeadGeneratorOnlyView && (
+                        <div>
+                            <h3 className="font-semibold text-gray-600">Total Cost</h3>
+                            <p>{project.total_cost !== undefined && project.total_cost !== null ? `₹${project.total_cost}` : 'N/A'}</p>
+                            
+                            {/* Custom Percentage Amount Display */}
+                            {!isAdmin && myAmount !== null && myAmount !== undefined && (
+                                 <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-800 text-sm">
+                                     <strong>My Allocated Amount:</strong><br/>
+                                     ₹{myAmount}
+                                     {project.assigned_by && project.assigned_by[currentProfile.id] && (
+                                         <div className="text-xs mt-1 text-green-700 opacity-80">
+                                             Assigned By: {project.assigned_by[currentProfile.id]}
+                                         </div>
+                                     )}
+                                 </div>
+                            )}
+                        </div>
+                    )}
                     <div>
                         <h3 className="font-semibold text-gray-600">Start Date</h3>
                         <p>{project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}</p>
@@ -190,31 +197,35 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                         <h3 className="font-semibold text-gray-600">End Date</h3>
                         <p>{project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Not set'}</p>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-gray-600">Project Asset</h3>
-                        <p>
-                          {project.project_asset ? (
-                            project.project_asset.startsWith('http') || project.project_asset.startsWith('/') ? (
-                              <a href={project.project_asset} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all inline-flex items-center">
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                                Open Asset / Folder
-                              </a>
-                            ) : (
-                              project.project_asset
-                            )
-                          ) : (
-                            'N/A'
-                          )}
-                        </p>
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-gray-600">Tags</h3>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                            {(project.tags || []).map(tag => (
-                                <span key={tag} className="bg-gray-200 text-gray-800 px-2 py-1 text-xs rounded-full">{tag}</span>
-                            ))}
-                        </div>
-                    </div>
+                    {!isLeadGeneratorOnlyView && (
+                        <>
+                            <div>
+                                <h3 className="font-semibold text-gray-600">Project Asset</h3>
+                                <p>
+                                  {project.project_asset ? (
+                                    project.project_asset.startsWith('http') || project.project_asset.startsWith('/') ? (
+                                      <a href={project.project_asset} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all inline-flex items-center">
+                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                        Open Asset / Folder
+                                      </a>
+                                    ) : (
+                                      project.project_asset
+                                    )
+                                  ) : (
+                                    'N/A'
+                                  )}
+                                </p>
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-gray-600">Tags</h3>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {(project.tags || []).map(tag => (
+                                        <span key={tag} className="bg-gray-200 text-gray-800 px-2 py-1 text-xs rounded-full">{tag}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                     {project.lead_generator_id && (
                         <div>
                             <h3 className="font-semibold text-gray-600">Lead Generator</h3>
@@ -232,51 +243,53 @@ const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({ title, projectId,
                     )}
                 </div>
 
-                <div className="mt-6 border-t pt-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-gray-600">Assigned Staff</h3>
-                        {(isAdmin || isAssignedToMe) && (
-                            <button 
-                                onClick={() => setIsAssignModalOpen(true)}
-                                className="text-sm bg-primary text-white px-3 py-1.5 rounded-md shadow hover:bg-primary-dark transition"
-                            >
-                                + Redirect / Assign Staff
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex flex-col space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                            {project.assigned_staff.filter(s => project.assigned_to?.includes(s.id)).map(staff => {
-                                const staffAmount = project.assigned_amounts?.[staff.id];
-                                return (
-                                <div key={staff.id} className="flex items-center p-2 bg-gray-50 border rounded-lg">
-                                    <div title={staff.username} className="h-10 w-10 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                                        {staff.username.substring(0, 2).toUpperCase()}
+                {!isLeadGeneratorOnlyView && (
+                    <div className="mt-6 border-t pt-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-semibold text-gray-600">Assigned Staff</h3>
+                            {(isAdmin || isAssignedToMe) && (
+                                <button 
+                                    onClick={() => setIsAssignModalOpen(true)}
+                                    className="text-sm bg-primary text-white px-3 py-1.5 rounded-md shadow hover:bg-primary-dark transition"
+                                >
+                                    + Redirect / Assign Staff
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex flex-col space-y-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                {project.assigned_staff.filter(s => project.assigned_to?.includes(s.id)).map(staff => {
+                                    const staffAmount = project.assigned_amounts?.[staff.id];
+                                    return (
+                                    <div key={staff.id} className="flex items-center p-2 bg-gray-50 border rounded-lg">
+                                        <div title={staff.username} className="h-10 w-10 bg-indigo-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                            {staff.username.substring(0, 2).toUpperCase()}
+                                        </div>
+                                        <div className="ml-3">
+                                            <div className="text-sm font-medium">{staff.username}</div>
+                                            {isAdmin && staffAmount !== undefined && staffAmount !== null && (
+                                                <div className="text-xs text-gray-500">
+                                                    ₹{staffAmount} 
+                                                    {project.assigned_by?.[staff.id] && ` (Assigned By: ${project.assigned_by[staff.id]})`}
+                                                </div>
+                                            )}
+                                            {/* For non-admins looking at other staff, they won't see amount, but they could see who assigned them if needed. But for now, only admins see the amount and who assigned them. Wait, CTO can also see staff they assigned. Let's just show Assigned By for everyone */}
+                                            {!isAdmin && project.assigned_by?.[staff.id] && (
+                                                <div className="text-xs text-gray-500">
+                                                    Assigned By: {project.assigned_by[staff.id]}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="ml-3">
-                                        <div className="text-sm font-medium">{staff.username}</div>
-                                        {isAdmin && staffAmount !== undefined && staffAmount !== null && (
-                                            <div className="text-xs text-gray-500">
-                                                ₹{staffAmount} 
-                                                {project.assigned_by?.[staff.id] && ` (Assigned By: ${project.assigned_by[staff.id]})`}
-                                            </div>
-                                        )}
-                                        {/* For non-admins looking at other staff, they won't see amount, but they could see who assigned them if needed. But for now, only admins see the amount and who assigned them. Wait, CTO can also see staff they assigned. Let's just show Assigned By for everyone */}
-                                        {!isAdmin && project.assigned_by?.[staff.id] && (
-                                            <div className="text-xs text-gray-500">
-                                                Assigned By: {project.assigned_by[staff.id]}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )})}
+                                )})}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Redirect / Assign Modal */}
-            {isAssignModalOpen && (
+            {isAssignModalOpen && !isLeadGeneratorOnlyView && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
                         <h2 className="text-xl font-bold mb-4">Redirect / Assign Project</h2>

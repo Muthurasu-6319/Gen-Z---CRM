@@ -79,7 +79,7 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
     if (window.confirm('Are you sure you want to convert this lead to a Client?')) {
         try {
             await api.post(`/api/leads/${leadId}/convert`, {});
-            alert('Successfully converted lead to client! Default password is 12345.');
+            alert('Successfully converted lead to client!');
             window.location.search = '?page=clients';
         } catch (err: any) {
             alert(`Error converting lead: ${err.message || err}`);
@@ -104,26 +104,29 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
 
     setIsUploading(true);
     Papa.parse(file, {
-      header: false,
+      header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        let data = results.data as string[][];
-        if (data.length > 0 && data[0][0]?.toLowerCase().includes('shop name')) {
-            data = data.slice(1);
-        }
+        let data = results.data as Record<string, string>[];
         
         const newLeads = data.map((row) => {
-            const shopName = row[0] || '';
-            const type = row[1] || '';
-            const location = row[2] || '';
-            const phone = row[3] || '';
-            const reqs = row[4] || '';
-            const notes = row[5] || '';
+            // Find keys dynamically to handle case differences and slight variations
+            const getVal = (keys: string[]) => {
+                const foundKey = Object.keys(row).find(k => keys.some(searchKey => k.toLowerCase().includes(searchKey.toLowerCase())));
+                return foundKey ? row[foundKey] || '' : '';
+            };
+
+            const clientName = getVal(['client', 'shop', 'name']);
+            const type = getVal(['type']);
+            const location = getVal(['location', 'city']);
+            const phone = getVal(['mobile', 'phone', 'contact']);
+            const reqs = getVal(['requirement', 'reqs']);
+            const notes = getVal(['note']);
             
-            const combinedNotes = type ? `[Type: ${type}] ${notes}` : notes;
+            const combinedNotes = type ? `[Type: ${type}] ${notes}`.trim() : notes;
 
             return {
-                client_name: shopName,
+                client_name: clientName,
                 requirements: reqs,
                 mobile_no: phone,
                 notes: combinedNotes,
@@ -134,10 +137,7 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
 
         if(newLeads.length > 0) {
             try {
-                // To avoid overwhelming the server, send them sequentially or in small batches
-                for (let i = 0; i < newLeads.length; i++) {
-                    await api.post('/api/leads', newLeads[i]);
-                }
+                await api.post('/api/leads/bulk-import', { leads: newLeads });
                 alert(`${newLeads.length} leads imported successfully!`);
                 fetchLeadsAndUsers();
             } catch (err: any) {
@@ -237,23 +237,18 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
               </select>
           </div>
           
-          {currentProfile?.role === 'Admin' && selectedLeads.size > 0 && (
+          {selectedLeads.size > 0 && (
               <div className="flex items-center space-x-2">
-                  <select value={assignUser} onChange={e => setAssignUser(e.target.value)} className="p-2 border rounded-md bg-white text-sm">
-                      <option value="">-- Assign To User --</option>
-                      {users.filter(u => u.role !== 'Client').map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
-                  </select>
-                  <button onClick={handleBulkAssign} disabled={isSaving || !assignUser} className="px-3 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center">
-                      Assign ({selectedLeads.size})
-                  </button>
-                  <button onClick={handleBulkDelete} disabled={isSaving} className="px-3 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-50 flex items-center">
-                      <TrashIcon className="h-4 w-4 mr-1" /> Delete ({selectedLeads.size})
-                  </button>
+                  {canDelete && (
+                      <button onClick={handleBulkDelete} disabled={isSaving} className="px-3 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600 disabled:opacity-50 flex items-center">
+                          <TrashIcon className="h-4 w-4 mr-1" /> Delete ({selectedLeads.size})
+                      </button>
+                  )}
               </div>
           )}
       </div>
 
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+      <div className="bg-white shadow-md rounded-lg overflow-hidden overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
             {/* v-- IPPO INGA PUDHUSA 'NOTES' NU ORU HEADER ADD PANROM --v */}
             <thead className="bg-gray-50">
@@ -265,7 +260,6 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Requirements</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned To</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -275,7 +269,6 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
                 {loading ? (<tr><td colSpan={8} className="p-8 text-center text-gray-500">Loading...</td></tr>) : 
                  filteredLeads.length === 0 ? (<tr><td colSpan={8} className="p-8 text-center text-gray-500">No leads found.</td></tr>) : 
                  (filteredLeads.map((lead) => {
-                    const assignedUser = users.find(u => u.id === lead.assigned_to);
                     return (
                     <tr key={lead.id} className={selectedLeads.has(lead.id) ? 'bg-indigo-50' : 'hover:bg-gray-50'}>
                         <td className="px-4 py-4">
@@ -285,11 +278,10 @@ const LeadsPage: React.FC<{ title: string }> = ({ title }) => {
                         <td className="px-6 py-4 text-sm text-gray-600 max-w-sm truncate">{lead.requirements}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{lead.mobile_no}</td>
                         <td className="px-6 py-4 text-sm text-gray-500">{lead.location || '-'}</td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{assignedUser ? assignedUser.username : '-'}</td>
                         {/* v-- IPPO INGA ANTHA SHORT NOTES AH KAATROM --v */}
                         <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={lead.notes || ''}>{lead.notes}</td>
                         {/* ^-- NOTES MUDINJATHU --^ */}
-                        <td className="px-6 py-4 text-right space-x-2">
+                        <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                             <button onClick={() => handleConvertToClient(lead.id)} className="p-1 text-green-500 hover:text-green-700 font-medium text-xs border border-green-500 rounded px-2 py-1 mr-1" title="Convert to Client">Convert</button>
                             {canEdit && <button onClick={() => { setLeadToEdit(lead); setModalOpen(true); }} className="p-1 text-gray-400 hover:text-primary" title="Edit Lead"><PencilIcon className="h-5 w-5"/></button>}
                             {canDelete && <button onClick={() => handleDeleteLead(lead.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Lead"><TrashIcon className="h-5 w-5"/></button>}

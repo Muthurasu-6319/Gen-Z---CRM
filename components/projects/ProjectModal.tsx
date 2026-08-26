@@ -38,6 +38,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
   const [staffList, setStaffList] = useState<User[]>([]);
   const [clientList, setClientList] = useState<User[]>([]);
   const [folders, setFolders] = useState<{name: string, original_name: string}[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('All');
 
   useEffect(() => {
     const fetchStaffAndFolders = async () => {
@@ -83,8 +84,20 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
         setClientName(''); setClientMobile(''); setTotalCost(''); setProjectAsset(''); setStartDate(''); setEndDate('');
         setAssignedTo([]); setAssignedAmounts({}); setAssignedBy({}); setStatus('Started');
         setLeadGeneratorId(''); setLeadGeneratorIncentive('');
+        setSelectedRole('All');
     }
   }, [projectToEdit, isOpen]);
+
+  const uniqueRoles = Array.from(new Set(
+    staffList
+      .map((s) => s.role)
+      .filter(Boolean)
+      .map((role) => role.charAt(0).toUpperCase() + role.slice(1).toLowerCase())
+  ));
+
+  const filteredStaffList = selectedRole === 'All' 
+    ? staffList 
+    : staffList.filter((s) => s.role && s.role.toLowerCase() === selectedRole.toLowerCase());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,9 +160,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-        setAssignedTo(staffList.map(staff => staff.id));
+        setAssignedTo(filteredStaffList.map(staff => staff.id));
         const newAssignedBy: Record<string, string> = {};
-        staffList.forEach(staff => {
+        filteredStaffList.forEach(staff => {
             newAssignedBy[staff.id] = assignedBy[staff.id] || currentProfile?.username || 'Admin';
         });
         setAssignedBy(newAssignedBy);
@@ -211,20 +224,26 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, pr
         </div>
         
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To (with Flat Amount ₹)</label>
+            <div className="flex justify-between items-end mb-2">
+                <label className="block text-sm font-medium text-gray-700">Assigned To (with Flat Amount ₹)</label>
+                <div className="w-48">
+                    <SelectField label="" value={selectedRole} onChange={(e: any) => setSelectedRole(e.target.value)} options={['All', ...uniqueRoles]} />
+                </div>
+            </div>
             <div className="p-2 border rounded-md max-h-48 overflow-y-auto bg-gray-50">
                 <div className="flex items-center p-2 border-b sticky top-0 bg-gray-50">
                     <input 
                         type="checkbox" 
                         id="select-all-staff" 
                         onChange={handleSelectAll} 
-                        checked={staffList.length > 0 && assignedTo.length === staffList.length}
+                        checked={filteredStaffList.length > 0 && assignedTo.length === filteredStaffList.length}
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                    <label htmlFor="select-all-staff" className="ml-3 block text-sm font-medium text-gray-700">Select All Staff</label>
+                    <label htmlFor="select-all-staff" className="ml-3 block text-sm font-medium text-gray-700">Select All {selectedRole !== 'All' ? selectedRole : 'Staff'}</label>
                 </div>
                 <div className="pt-2 space-y-2">
-                    {staffList.map(staff => {
+                    {filteredStaffList.length === 0 && <div className="text-sm text-gray-500 p-2">No users found for this role.</div>}
+                    {filteredStaffList.map(staff => {
                         const isSelected = assignedTo.includes(staff.id);
                         return (
                         <div key={staff.id} className="flex items-center justify-between p-2 hover:bg-gray-100 rounded">

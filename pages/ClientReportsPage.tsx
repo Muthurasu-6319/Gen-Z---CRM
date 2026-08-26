@@ -9,7 +9,7 @@ const ClientReportsPage: React.FC<{ title: string }> = ({ title }) => {
     const { currentProfile, hasPermission } = usePermissions();
     const [reports, setReports] = useState<ClientReport[]>([]);
     const [clients, setClients] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     
     // Form states
@@ -26,7 +26,7 @@ const ClientReportsPage: React.FC<{ title: string }> = ({ title }) => {
     const canDelete = !isClient && hasPermission('client-reports', 'delete');
 
     const fetchData = useCallback(async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const reportsData = await api.get('/api/client-reports');
             setReports(reportsData || []);
@@ -44,6 +44,16 @@ const ClientReportsPage: React.FC<{ title: string }> = ({ title }) => {
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchData();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchData]);
+
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();

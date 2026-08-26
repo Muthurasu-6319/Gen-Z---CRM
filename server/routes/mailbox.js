@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { createTransporter } = require('../mailer');
-const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, admin } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, admin } = require('../mongodb-admin');
 
 // GET /api/mailbox — list mails for current user
 router.get('/', auth, async (req, res) => {
@@ -154,10 +154,10 @@ router.post('/send', auth, async (req, res) => {
     }
 
     // 4. Send via Resend if configured
-    if (process.env.RESEND_API_KEY) {
+    if (process.env.GMAIL_USER) {
       const transporter = await createTransporter();
       await transporter.sendMail({
-        from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+        from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
         to,
         subject,
         html,

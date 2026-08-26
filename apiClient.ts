@@ -5,7 +5,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 function getToken(): string | null {
-  return localStorage.getItem('crm_token') || sessionStorage.getItem('crm_token');
+  return sessionStorage.getItem('crm_token') || localStorage.getItem('crm_token');
 }
 
 function authHeaders(): HeadersInit {
@@ -53,10 +53,9 @@ export function getFileUrl(filename: string): string {
 }
 
 export function storeToken(token: string, remember: boolean = false): void {
+  sessionStorage.setItem('crm_token', token);
   if (remember) {
     localStorage.setItem('crm_token', token);
-  } else {
-    sessionStorage.setItem('crm_token', token);
   }
 }
 

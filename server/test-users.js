@@ -1,7 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const { getCollection } = require('./firebase-admin');
+const { getCollection } = require('./mongodb-admin');
 
 async function test() {
   try {

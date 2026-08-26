@@ -1,52 +1,53 @@
-// server/mailer.js — Resend API Email Client
-const { Resend } = require('resend');
+// server/mailer.js — Nodemailer Email Client
+const nodemailer = require('nodemailer');
 const db = require('./db');
 
-let resendClient = null;
+let transporter = null;
 
-function getResendClient() {
-  if (!resendClient) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      console.warn('[mailer] RESEND_API_KEY not set. Emails will be skipped.');
+function getTransporter() {
+  if (!transporter) {
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_APP_PASSWORD;
+    
+    if (!user || !pass) {
+      console.warn('[mailer] GMAIL_USER or GMAIL_APP_PASSWORD not set. Emails will be skipped.');
       return null;
     }
-    resendClient = new Resend(apiKey);
+    
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: user,
+        pass: pass.replace(/"/g, '') // Remove quotes if any
+      }
+    });
   }
-  return resendClient;
+  return transporter;
 }
 
-// Safe from address
 function getFromAddress() {
-  return process.env.RESEND_FROM || 'onboarding@resend.dev';
+  return `GenZ CRM <${process.env.GMAIL_USER || 'no-reply@genzneuralx.com'}>`;
 }
 
-// Reply-to address (Gmail)
-function getReplyTo() {
-  return process.env.RESEND_REPLY_TO || null;
-}
-
-// Compatibility shim: createTransporter() returns a Resend-backed sendMail object
+// Compatibility shim: returns an object with sendMail matching old signature
 async function createTransporter() {
-  const resend = getResendClient();
+  const mailer = getTransporter();
   return {
     sendMail: async ({ from, to, subject, html }) => {
-      if (!resend) {
-        console.warn('[mailer] Skipping email — RESEND_API_KEY not configured.');
+      if (!mailer) {
+        console.warn('[mailer] Skipping email — Gmail not configured.');
         return;
       }
       const payload = {
         from: from || getFromAddress(),
-        to: Array.isArray(to) ? to : [to],
+        to: Array.isArray(to) ? to.join(', ') : to,
         subject,
         html
       };
-      const replyTo = getReplyTo();
-      if (replyTo) payload.reply_to = replyTo;
-      const { data, error } = await resend.emails.send(payload);
-      if (error) throw new Error(error.message);
-      console.log(`[mailer] Email sent via Resend. ID: ${data?.id}`);
-      return data;
+      
+      const info = await mailer.sendMail(payload);
+      console.log(`[mailer] Email sent via Gmail. ID: ${info.messageId}`);
+      return info;
     }
   };
 }
@@ -55,9 +56,9 @@ async function createTransporter() {
  * Sends an assignment email to a specific user.
  */
 async function sendAssignmentEmail(userEmail, username, itemType, itemTitle, description = '') {
-  const resend = getResendClient();
-  if (!resend) {
-    console.warn('[mailer] Skipping assignment email — RESEND_API_KEY not configured.');
+  const mailer = getTransporter();
+  if (!mailer) {
+    console.warn('[mailer] Skipping assignment email — Gmail not configured.');
     return;
   }
 
@@ -82,17 +83,13 @@ async function sendAssignmentEmail(userEmail, username, itemType, itemTitle, des
   `;
 
   try {
-    const payload = {
+    const info = await mailer.sendMail({
       from: getFromAddress(),
-      to: [userEmail],
+      to: userEmail,
       subject: `New Assignment: ${itemTitle}`,
       html
-    };
-    const replyTo = getReplyTo();
-    if (replyTo) payload.reply_to = replyTo;
-    const { data, error } = await resend.emails.send(payload);
-    if (error) throw new Error(error.message);
-    console.log(`[mailer] Assignment email sent to ${userEmail}. ID: ${data?.id}`);
+    });
+    console.log(`[mailer] Assignment email sent to ${userEmail}. ID: ${info.messageId}`);
   } catch (e) {
     console.error(`[mailer] Failed to send assignment email to ${userEmail}:`, e.message);
   }
@@ -101,13 +98,13 @@ async function sendAssignmentEmail(userEmail, username, itemType, itemTitle, des
 /**
  * Notifies multiple users by their IDs.
  */
-async function notifyAssignedUsers(userIds, itemType, itemTitle, description = '') {
+async function notifyAssignedUsers(userIds, itemType, itemTitle, description = '', excludeUserId = null) {
   if (!userIds || !Array.isArray(userIds) || userIds.length === 0) return;
   try {
     const placeholders = userIds.map(() => '?').join(',');
     const [users] = await db.query(`SELECT id, username, email FROM profiles WHERE id IN (${placeholders})`, userIds);
     for (const user of users) {
-      if (user.email) {
+      if (user.email && String(user.id) !== String(excludeUserId)) {
         await sendAssignmentEmail(user.email, user.username, itemType, itemTitle, description);
       }
     }
@@ -116,8 +113,42 @@ async function notifyAssignedUsers(userIds, itemType, itemTitle, description = '
   }
 }
 
+/**
+ * Notifies all staff members (excluding 'Client' role and the user who triggered the action)
+ */
+async function notifyAllStaff(subject, html, excludeUserId = null) {
+  try {
+    const transporter = await createTransporter();
+    if (!transporter) return;
+
+    let staffEmails = [];
+    try {
+      const { getCollection } = require('./mongodb-admin');
+      const profiles = await getCollection('profiles');
+      staffEmails = profiles
+        .filter(p => p.role && p.role !== 'Client' && p.email && String(p.id || p._id) !== String(excludeUserId))
+        .map(p => p.email);
+    } catch (e) {
+      console.error('[mailer] Error getting profiles for assigned users fallback:', e);
+    }
+
+    if (staffEmails.length === 0) return;
+
+    await transporter.sendMail({
+      from: getFromAddress(),
+      to: staffEmails,
+      subject,
+      html
+    });
+    console.log(`[mailer] Notified ${staffEmails.length} staff members.`);
+  } catch (err) {
+    console.error('[mailer] Error notifying all staff:', err);
+  }
+}
+
 module.exports = {
   createTransporter,
   sendAssignmentEmail,
-  notifyAssignedUsers
+  notifyAssignedUsers,
+  notifyAllStaff
 };

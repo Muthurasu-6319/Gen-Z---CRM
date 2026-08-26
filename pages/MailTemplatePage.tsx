@@ -122,13 +122,13 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ initial, onSave, onClose })
 // ─── Main MailTemplatePage ────────────────────────────────────────────────────
 const MailTemplatePage: React.FC<{ title: string }> = ({ title }) => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editTemplate, setEditTemplate] = useState<EmailTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
 
   const fetchTemplates = useCallback(async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     try {
       const data = await api.get<EmailTemplate[]>('/api/mailbox/templates');
       setTemplates(data);
@@ -137,6 +137,16 @@ const MailTemplatePage: React.FC<{ title: string }> = ({ title }) => {
   }, []);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchTemplates();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchTemplates]);
+
 
   const handleCreate = async (data: { name: string; subject: string; body: string }) => {
     try {

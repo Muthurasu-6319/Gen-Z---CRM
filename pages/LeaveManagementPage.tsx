@@ -20,7 +20,7 @@ const statusColors: { [key: string]: string } = {
 const LeaveManagementPage: React.FC<{ title: string }> = ({ title }) => {
     const { currentProfile, loading: profileLoading } = usePermissions();
     const [allLeaves, setAllLeaves] = useState<LeaveWithProfile[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     
     const [updatingLeaveId, setUpdatingLeaveId] = useState<number | null>(null);
     const [editingLeave, setEditingLeave] = useState<LeaveWithProfile | null>(null);
@@ -34,7 +34,7 @@ const LeaveManagementPage: React.FC<{ title: string }> = ({ title }) => {
                 setLoading(false);
                 return;
             }
-            setLoading(true);
+            // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
             try {
                 const data = await api.get('/api/leave');
                 const mapped = data.map((l: any) => ({

@@ -1,7 +1,7 @@
 // server/db.js — Firebase Firestore Emulator Wrapper
 const fs = require('fs');
 const path = require('path');
-const { getDb, FieldValue } = require('./firebase-admin');
+const { getDb, FieldValue } = require('./mongodb-admin');
 
 // Seed default profiles into Firestore if the profiles collection is empty
 async function seedDefaultFirestore() {

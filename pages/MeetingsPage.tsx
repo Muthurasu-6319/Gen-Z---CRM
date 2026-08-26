@@ -73,6 +73,16 @@ const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
     fetchMeetingsAndStaff();
   }, [fetchMeetingsAndStaff]);
 
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchMeetingsAndStaff();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchMeetingsAndStaff]);
+
+
   const clearForm = () => {
     setMeetTitle(''); setStartTime(''); setEndTime('');
     setMeetLink(''); setAssignedTo([]); setSelectedMeeting(null);

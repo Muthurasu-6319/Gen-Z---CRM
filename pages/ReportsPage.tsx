@@ -15,7 +15,7 @@ const ReportsPage: React.FC<{ title: string }> = ({ title }) => {
     const { currentProfile, hasPermission } = usePermissions();
     const [reports, setReports] = useState<ReportWithProfile[]>([]);
     const [performance, setPerformance] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [reportToEdit, setReportToEdit] = useState<ReportWithProfile | null>(null);
@@ -30,7 +30,7 @@ const ReportsPage: React.FC<{ title: string }> = ({ title }) => {
 
     const fetchReports = useCallback(async () => {
         if (!currentProfile) return;
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const data = await api.get('/api/reports');
             const mapped = data.map((r: any) => ({
@@ -50,6 +50,16 @@ const ReportsPage: React.FC<{ title: string }> = ({ title }) => {
     useEffect(() => {
         fetchReports();
     }, [fetchReports]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchReports();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchReports]);
+
 
     const openModal = (report: ReportWithProfile | null = null) => {
         if (report) {

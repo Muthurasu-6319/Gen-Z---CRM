@@ -7,7 +7,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM transactions');
     
-    const { getDb } = require('../firebase-admin');
+    const { getDb } = require('../mongodb-admin');
     const firestore = getDb();
     let profiles = {};
     if (firestore) {

@@ -13,9 +13,10 @@ interface TaskModalProps {
   onSave: (taskData: TaskFormData) => Promise<void>;
   taskToEdit?: Task | null;
   isSaving: boolean;
+  isAssigneeOnly?: boolean;
 }
 
-const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, taskToEdit, isSaving }) => {
+const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, taskToEdit, isSaving, isAssigneeOnly }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
@@ -25,12 +26,14 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, taskToEd
   const [status, setStatus] = useState<Task['status']>('To Do');
 
   const [staff, setStaff] = useState<User[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('All');
+  const [hasInitializedRole, setHasInitializedRole] = useState(false);
 
   useEffect(() => {
     const fetchStaff = async () => {
       try {
         const data = await api.get('/api/users');
-        setStaff(data.filter((u: any) => ['Admin', 'Staff'].includes(u.role)));
+        setStaff(data.filter((u: any) => u.role !== 'Client'));
       } catch (err) {
         console.error("Error fetching staff:", err);
       }
@@ -57,8 +60,33 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, taskToEd
       setDueDate('');
       setPriority('Medium');
       setStatus('To Do');
+      setSelectedRole('All');
+      setHasInitializedRole(false);
     }
   }, [taskToEdit, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+        setHasInitializedRole(false);
+    } else if (taskToEdit && taskToEdit.assignee_id && staff.length > 0 && !hasInitializedRole) {
+        const assignedUser = staff.find(u => u.id === taskToEdit.assignee_id);
+        if (assignedUser && assignedUser.role) {
+            setSelectedRole(assignedUser.role.charAt(0).toUpperCase() + assignedUser.role.slice(1).toLowerCase());
+        }
+        setHasInitializedRole(true);
+    }
+  }, [isOpen, taskToEdit, staff, hasInitializedRole]);
+
+  const uniqueRoles = Array.from(new Set(
+    staff
+      .map((s) => s.role)
+      .filter(Boolean)
+      .map((role) => role.charAt(0).toUpperCase() + role.slice(1).toLowerCase())
+  ));
+
+  const filteredStaff = selectedRole === 'All' 
+    ? staff 
+    : staff.filter((s) => s.role && s.role.toLowerCase() === selectedRole.toLowerCase());
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,23 +109,23 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, onSave, taskToEd
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={taskToEdit ? 'Edit Task' : 'Create New Task'}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <InputField label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
         <div>
-          <label className="block text-sm font-medium text-gray-700">Description</label>
-          <textarea
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-          />
+          <InputField label="Task Title" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required disabled={isAssigneeOnly} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SelectField label="Assign To" value={assigneeId || ''} onChange={e => setAssigneeId(e.target.value || null)} options={staff} defaultOption="Unassigned" />
-          <InputField label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <InputField label="Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+          <textarea id="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" disabled={isAssigneeOnly} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SelectField label="Priority" value={priority} onChange={e => setPriority(e.target.value as any)} options={['Low', 'Medium', 'High']} />
+          <SelectField label="Filter by Role" value={selectedRole} onChange={(e) => { setSelectedRole(e.target.value); setAssigneeId(null); }} options={['All', ...uniqueRoles]} disabled={isAssigneeOnly} />
+          <SelectField label="Assign To" value={assigneeId || ''} onChange={e => setAssigneeId(e.target.value || null)} options={filteredStaff} defaultOption="Unassigned" disabled={isAssigneeOnly || (filteredStaff.length === 0 && selectedRole !== 'All')} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <InputField label="Start Date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} disabled={isAssigneeOnly} />
+          <InputField label="Due Date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isAssigneeOnly} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SelectField label="Priority" value={priority} onChange={e => setPriority(e.target.value as any)} options={['Low', 'Medium', 'High']} disabled={isAssigneeOnly} />
             <SelectField label="Status" value={status} onChange={e => setStatus(e.target.value as any)} options={['To Do', 'In Progress', 'Completed']} />
         </div>
         

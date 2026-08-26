@@ -43,12 +43,14 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     setError('');
     setSuccessMsg('');
     try {
       const data = await api.post<{ token: string; user: unknown }>('/api/auth/login', { email, password });
       storeToken(data.token, rememberMe);
+      // Clear any existing page from the URL so we land on the Dashboard
+      window.history.pushState({}, '', '/');
       window.dispatchEvent(new Event('crm:login'));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -63,7 +65,7 @@ const LoginPage: React.FC = () => {
       setError('Please enter your email address first.');
       return;
     }
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     setError('');
     setSuccessMsg('');
     try {
@@ -79,7 +81,7 @@ const LoginPage: React.FC = () => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     setError('');
     setSuccessMsg('');
     try {

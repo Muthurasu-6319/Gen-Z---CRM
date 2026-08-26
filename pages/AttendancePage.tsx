@@ -24,12 +24,12 @@ const roleColors: { [key: string]: string } = {
 
 const AttendancePage: React.FC<AttendancePageProps> = ({ title, setActivePage }) => {
     const [staffList, setStaffList] = useState<StaffSummary[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     // Default to the current month in 'YYYY-MM' format
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
     const fetchStaffSummary = useCallback(async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const [profiles, attendance] = await Promise.all([
                 api.get('/api/users'),
@@ -68,6 +68,16 @@ const AttendancePage: React.FC<AttendancePageProps> = ({ title, setActivePage })
     useEffect(() => {
         fetchStaffSummary();
     }, [fetchStaffSummary]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchStaffSummary();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchStaffSummary]);
+
 
     return (
         <div>

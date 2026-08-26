@@ -18,14 +18,14 @@ const UserNotesPage: React.FC<{ title: string }> = ({ title }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchNotes = useCallback(async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     try {
       const data = await api.get('/api/user-notes');
       const notesArray = Array.isArray(data) ? data : (data && data.content !== undefined ? [] : []);
@@ -42,6 +42,16 @@ const UserNotesPage: React.FC<{ title: string }> = ({ title }) => {
   useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchNotes();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchNotes]);
+
 
   const activeNote = notes.find(n => n.id === activeNoteId) || null;
 

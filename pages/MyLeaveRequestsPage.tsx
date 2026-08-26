@@ -16,7 +16,7 @@ const statusColors: { [key: string]: string } = {
 const MyLeaveRequestsPage: React.FC<{ title: string }> = ({ title }) => {
     const { currentProfile } = usePermissions();
     const [myLeaves, setMyLeaves] = useState<Leave[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     
     // Namma ippo 2 modal states vechirukkom
     const [isRequestModalOpen, setRequestModalOpen] = useState(false);
@@ -30,7 +30,7 @@ const MyLeaveRequestsPage: React.FC<{ title: string }> = ({ title }) => {
 
     const fetchMyLeaves = useCallback(async () => {
         if (!currentProfile) return;
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const data = await api.get('/api/leave');
             setMyLeaves(data || []);

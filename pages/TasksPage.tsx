@@ -58,7 +58,7 @@ const ViewTaskModal: React.FC<{ isOpen: boolean; onClose: () => void; task: Task
 const TasksPage: React.FC<{ title: string }> = ({ title }) => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [tasks, setTasks] = useState<TaskWithAssignee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -74,7 +74,7 @@ const TasksPage: React.FC<{ title: string }> = ({ title }) => {
   const canDelete = hasPermission('tasks', 'delete');
 
   const fetchTasks = useCallback(async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     try {
       const data = await api.get('/api/tasks');
       // Map assignee_name to profiles to keep compatibility with UI
@@ -92,6 +92,16 @@ const TasksPage: React.FC<{ title: string }> = ({ title }) => {
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchTasks();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchTasks]);
+
 
   const handleSaveTask = async (taskData: Omit<Task, 'id' | 'created_at'>) => {
     setIsSaving(true);
@@ -281,7 +291,14 @@ const TasksPage: React.FC<{ title: string }> = ({ title }) => {
         </div>
       </div>
       
-      <TaskModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} onSave={handleSaveTask} taskToEdit={taskToEdit} isSaving={isSaving} />
+      <TaskModal 
+        isOpen={isModalOpen} 
+        onClose={() => setModalOpen(false)} 
+        onSave={handleSaveTask} 
+        taskToEdit={taskToEdit} 
+        isSaving={isSaving} 
+        isAssigneeOnly={taskToEdit && currentProfile ? (taskToEdit.assignee_id === currentProfile.id && currentProfile.role !== 'Admin' && currentProfile.id !== taskToEdit.created_by) : false}
+      />
       <ViewTaskModal isOpen={!!viewingTask} onClose={() => setViewingTask(null)} task={viewingTask} currentProfile={currentProfile} onStatusUpdate={handleUpdateStatus} />
     </>
   );

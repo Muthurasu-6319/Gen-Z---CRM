@@ -31,7 +31,7 @@ const TicketsPage: React.FC<{ title: string }> = ({ title }) => {
   const { currentProfile, hasPermission } = usePermissions();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal state
@@ -46,7 +46,7 @@ const TicketsPage: React.FC<{ title: string }> = ({ title }) => {
   const canEdit = hasPermission('support-ticket', 'edit');
 
   const fetchTicketsAndUsers = async () => {
-    setLoading(true);
+    // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
     try {
       const [ticketsData, usersData] = await Promise.all([
         api.get<Ticket[]>('/api/tickets'),

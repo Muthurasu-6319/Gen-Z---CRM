@@ -16,6 +16,15 @@ module.exports = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Normalize role capitalization to match backend checks
+    if (decoded.role && typeof decoded.role === 'string') {
+      const lower = decoded.role.toLowerCase();
+      if (lower === 'admin') decoded.role = 'Admin';
+      else if (lower === 'staff') decoded.role = 'Staff';
+      else if (lower === 'client') decoded.role = 'Client';
+    }
+    
     req.user = decoded; // { id, email, role }
     next();
   } catch {

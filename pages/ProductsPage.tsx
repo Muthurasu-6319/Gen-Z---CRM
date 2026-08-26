@@ -62,7 +62,7 @@ const ViewProductModal: React.FC<{ isOpen: boolean; onClose: () => void; product
 const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
     const [isModalOpen, setModalOpen] = useState(false);
     const [products, setProducts] = useState<ProductWithCollaborators[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [productToEdit, setProductToEdit] = useState<Product | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [viewingProduct, setViewingProduct] = useState<ProductWithCollaborators | null>(null);
@@ -77,7 +77,7 @@ const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
     const [collaboratorFilter, setCollaboratorFilter] = useState<boolean>(false);
 
     const fetchProducts = useCallback(async () => {
-        setLoading(true);
+        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const [productsData, profilesData] = await Promise.all([
                 api.get('/api/products'),
@@ -102,6 +102,16 @@ const ProductsPage: React.FC<{ title: string }> = ({ title }) => {
     useEffect(() => {
         fetchProducts();
     }, [fetchProducts]);
+
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchProducts();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchProducts]);
+
 
     const handleSaveProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'created_by'>) => {
         setIsSaving(true);

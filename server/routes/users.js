@@ -2,25 +2,15 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne, setDoc } = require('../firebase-admin');
-const { createTransporter } = require('../mailer');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne, setDoc } = require('../mongodb-admin');
+const { createTransporter, notifyAllStaff } = require('../mailer');
 
 async function sendWelcomeEmail(user, rawPassword) {
-  if (!process.env.RESEND_API_KEY) {
+  if (!process.env.GMAIL_USER) {
     console.warn('Resend not configured, skipping welcome email.');
     return;
   }
   const transporter = await createTransporter();
-  
-  let permissionsHtml = `<p><strong>Access Role:</strong> ${user.role}</p>`;
-  if (user.role !== 'Client' && user.permissions) {
-    const allowed = Object.keys(user.permissions).filter(p => user.permissions[p].view);
-    if (allowed.length > 0) {
-        const formatted = allowed.map(p => p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, ' ')).join(', ');
-        permissionsHtml += `<p><strong>Accessible Modules:</strong> ${formatted}</p>`;
-    }
-  }
-
   try {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
@@ -34,7 +24,7 @@ async function sendWelcomeEmail(user, rawPassword) {
           <p><strong>Password:</strong> ${rawPassword}</p>
           <p><strong>Phone Number:</strong> ${user.mobile || 'N/A'}</p>
           <p><strong>Designation:</strong> ${user.designation || 'N/A'}</p>
-          ${permissionsHtml}
+          <p><strong>Access Role:</strong> ${user.role}</p>
         </div>
         
         <p>You can log into the CRM platform at:</p>
@@ -54,7 +44,7 @@ async function sendWelcomeEmail(user, rawPassword) {
     `;
 
     await transporter.sendMail({
-      from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
       to: user.email,
       subject: 'Welcome to GENZ CRM - Your Login Details',
       html
@@ -69,8 +59,8 @@ async function sendWelcomeEmail(user, rawPassword) {
 router.get('/', auth, async (req, res) => {
   try {
     const users = await getCollection('profiles');
-    // Remove password field for safety
-    const safeUsers = users.map(({ password, ...user }) => user);
+    // Return raw_password as password for the UI if it exists
+    const safeUsers = users.map(({ password, raw_password, ...user }) => ({ ...user, password: raw_password || '' }));
     // Sort by created_at descending (created_at might be a Firestore Timestamp)
     safeUsers.sort((a, b) => {
       const timeA = a.created_at ? (a.created_at._seconds || new Date(a.created_at).getTime()) : 0;
@@ -88,9 +78,11 @@ router.post('/', auth, async (req, res) => {
   if (req.user.role !== 'Admin')
     return res.status(403).json({ error: 'Admin only' });
 
-  const { username, email, password, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, total_paid, total_pending, services } = req.body;
-  if (!username || !email || !password)
-    return res.status(400).json({ error: 'username, email and password required' });
+  const { username, email, password, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, total_paid, total_pending, services, emp_id, requirements, location, notes } = req.body;
+  if (!username) return res.status(400).json({ error: 'username required' });
+  if (role !== 'Client' && (!email || !password)) {
+    return res.status(400).json({ error: 'email and password required for staff' });
+  }
 
   try {
     // Check if email already exists
@@ -99,12 +91,15 @@ router.post('/', auth, async (req, res) => {
       return res.status(409).json({ error: 'Email already exists' });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    let hashed = '';
+    if (password) {
+      hashed = await bcrypt.hash(password, 10);
+    }
     
     // Create new profile object
     const newProfile = {
       username,
-      email,
+      email: email || '',
       password: hashed,
       role: role || 'Staff',
       designation: designation || null,
@@ -117,13 +112,46 @@ router.post('/', auth, async (req, res) => {
       total_paid: total_paid || 0,
       total_pending: total_pending || 0,
       services: services || [],
+      emp_id: emp_id || null,
+      raw_password: password,
+      requirements: requirements || null,
+      location: location || null,
+      notes: notes || null,
     };
 
     const doc = await addDoc('profiles', newProfile);
     const { password: _pw, ...safeUser } = doc;
     
     // Send email asynchronously without blocking the response
-    sendWelcomeEmail(newProfile, password);
+    if (role !== 'Client' && email && password) {
+      sendWelcomeEmail(newProfile, password);
+    } else if (role === 'Client') {
+      
+      let creatorName = 'System/Admin';
+      if (req.user && req.user.id) {
+          try {
+              const creator = await getDoc('profiles', req.user.id);
+              if (creator && creator.username) creatorName = creator.username;
+          } catch(e) {}
+      }
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+          <h2 style="color: #4f46e5;">New Client Added</h2>
+          <p>A new Client has been added to the CRM.</p>
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <p><strong>Added By:</strong> ${creatorName}</p>
+            <p><strong>Name:</strong> ${username}</p>
+            <p><strong>Mobile:</strong> ${mobile || 'N/A'}</p>
+            <p><strong>Email:</strong> ${email || 'N/A'}</p>
+            <p><strong>Requirements:</strong> ${requirements || 'N/A'}</p>
+            <p><strong>Location:</strong> ${location || 'N/A'}</p>
+            <p><strong>Notes:</strong> ${notes || 'N/A'}</p>
+          </div>
+        </div>
+      `;
+      notifyAllStaff(`New Client Added: ${username}`, html, req.user ? req.user.id : null);
+    }
     
     res.status(201).json(safeUser);
   } catch (err) {
@@ -136,7 +164,7 @@ router.put('/:id', auth, async (req, res) => {
   if (req.user.role !== 'Admin' && req.user.id !== req.params.id)
     return res.status(403).json({ error: 'Forbidden' });
 
-  const { username, email, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, password, total_paid, total_pending, services, profile_picture } = req.body;
+  const { username, email, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, password, total_paid, total_pending, services, profile_picture, emp_id, requirements, location, notes } = req.body;
   try {
     const updateData = {};
     if (username !== undefined) updateData.username = username;
@@ -152,18 +180,109 @@ router.put('/:id', auth, async (req, res) => {
     if (total_paid !== undefined) updateData.total_paid = Number(total_paid);
     if (total_pending !== undefined) updateData.total_pending = Number(total_pending);
     if (services !== undefined) updateData.services = services;
+    if (emp_id !== undefined) updateData.emp_id = emp_id;
     if (profile_picture !== undefined) updateData.profile_picture = profile_picture;
+    if (requirements !== undefined) updateData.requirements = requirements;
+    if (location !== undefined) updateData.location = location;
+    if (notes !== undefined) updateData.notes = notes;
     
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
+      updateData.raw_password = password;
+    }
+
+    if (req.params.id === 'admin-env') {
+      return res.status(403).json({ error: 'Cannot update the environment fallback Admin profile from the UI. Please update the .env file directly or use a database Admin account.' });
     }
 
     const updated = await updateDoc('profiles', req.params.id, updateData);
+    if (!updated) {
+      return res.status(404).json({ error: 'Profile not found in database' });
+    }
     const { password: _pw, ...safeUser } = updated;
+    
+    if (updated.role === 'Client') {
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+          <h2 style="color: #4f46e5;">Client Updated</h2>
+          <p>Client details have been updated in the CRM.</p>
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+            <table style="width: 100%; text-align: left; border-collapse: collapse;">
+              <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${updated.username}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>Mobile:</strong></td><td>${updated.mobile || 'N/A'}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>Location:</strong></td><td>${updated.location || 'N/A'}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>Requirements:</strong></td><td>${updated.requirements || 'N/A'}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>Notes:</strong></td><td>${updated.notes || 'N/A'}</td></tr>
+            </table>
+          </div>
+        </div>
+      `;
+      notifyAllStaff(`Client Updated: ${updated.username}`, html, req.user ? req.user.id : null);
+    }
+
     res.json(safeUser);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// POST /api/users/bulk-delete
+router.post('/bulk-delete', auth, async (req, res) => {
+  if (req.user.role !== 'Admin')
+    return res.status(403).json({ error: 'Admin only' });
+
+  const { userIds } = req.body;
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'No users provided' });
+  }
+
+  try {
+    let deleterName = 'System/Admin';
+    if (req.user && req.user.id) {
+        try {
+            const deleter = await getDoc('profiles', req.user.id);
+            if (deleter && deleter.username) deleterName = deleter.username;
+        } catch(e) {}
+    }
+
+    const deletedClients = [];
+    for (const id of userIds) {
+      const userToDelete = await getDoc('profiles', id);
+      if (userToDelete) {
+        await deleteDoc('profiles', id);
+        if (userToDelete.role === 'Client') {
+            deletedClients.push(userToDelete);
+        }
+      }
+    }
+    
+    if (deletedClients.length > 0) {
+      let clientsTableRows = deletedClients.map((client, index) => `
+        <div style="background-color: #ffffff; padding: 15px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+          <h3 style="margin-top: 0; margin-bottom: 10px; color: #111827; font-size: 16px; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px;">#${index + 1} - ${client.username || 'Unnamed Client'}</h3>
+          <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 14px; color: #374151;">
+            <tr><td style="padding: 4px 0; width: 120px; font-weight: bold;">Mobile:</td><td style="padding: 4px 0;">${client.mobile || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0; font-weight: bold;">Location:</td><td style="padding: 4px 0;">${client.location || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0; font-weight: bold; vertical-align: top;">Requirements:</td><td style="padding: 4px 0;">${client.requirements || 'N/A'}</td></tr>
+            <tr><td style="padding: 4px 0; font-weight: bold; vertical-align: top;">Notes:</td><td style="padding: 4px 0;">${client.notes || 'N/A'}</td></tr>
+          </table>
+        </div>
+      `).join('');
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border: 1px solid #eee; border-radius: 8px;">
+          <h2 style="color: #ef4444; margin-top: 0;">Bulk Clients Deleted</h2>
+          <p style="font-size: 15px; color: #4b5563;"><strong>${deletedClients.length}</strong> Clients have been deleted from the CRM by <strong>${deleterName}</strong>.</p>
+          <div style="margin-top: 20px;">
+            ${clientsTableRows}
+          </div>
+        </div>
+      `;
+      notifyAllStaff(`Bulk Clients Deleted (${deletedClients.length})`, html, req.user ? req.user.id : null);
+    }
+    
+    res.json({ message: 'Users deleted successfully' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // DELETE /api/users/:id
@@ -171,7 +290,35 @@ router.delete('/:id', auth, async (req, res) => {
   if (req.user.role !== 'Admin')
     return res.status(403).json({ error: 'Admin only' });
   try {
+    const userToDelete = await getDoc('profiles', req.params.id);
     await deleteDoc('profiles', req.params.id);
+    
+    if (userToDelete && userToDelete.role === 'Client') {
+        let deleterName = 'System/Admin';
+        if (req.user && req.user.id) {
+            try {
+                const deleter = await getDoc('profiles', req.user.id);
+                if (deleter && deleter.username) deleterName = deleter.username;
+            } catch(e) {}
+        }
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+            <h2 style="color: #ef4444;">Client Deleted</h2>
+            <p>A Client has been deleted from the CRM by <strong>${deleterName}</strong>.</p>
+            <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+              <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${userToDelete.username}</td></tr>
+                <tr><td style="padding: 4px 0;"><strong>Mobile:</strong></td><td>${userToDelete.mobile || 'N/A'}</td></tr>
+                <tr><td style="padding: 4px 0;"><strong>Location:</strong></td><td>${userToDelete.location || 'N/A'}</td></tr>
+                <tr><td style="padding: 4px 0;"><strong>Requirements:</strong></td><td>${userToDelete.requirements || 'N/A'}</td></tr>
+                <tr><td style="padding: 4px 0;"><strong>Notes:</strong></td><td>${userToDelete.notes || 'N/A'}</td></tr>
+              </table>
+            </div>
+          </div>
+        `;
+        notifyAllStaff(`Client Deleted: ${userToDelete.username}`, html, req.user ? req.user.id : null);
+    }
+    
     res.json({ message: 'User deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });

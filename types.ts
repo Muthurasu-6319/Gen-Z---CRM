@@ -71,6 +71,7 @@ export interface Task {
   due_date: string | null;
   priority: 'Low' | 'Medium' | 'High';
   status: 'To Do' | 'In Progress' | 'Completed';
+  created_by?: string;
 }
 
 // in src/types.ts
@@ -157,6 +158,7 @@ export interface User {
   password?: string;
   role: 'Admin' | 'Staff' | 'Client' | string;
   mobile?: string;
+  emp_id?: string;
   gpay?: string;
   bankDetails?: string;
   bank_details?: string;
@@ -169,6 +171,9 @@ export interface User {
   total_pending?: number;
   services?: string[];
   profile_picture?: string;
+  requirements?: string;
+  location?: string;
+  notes?: string;
  }
 
 

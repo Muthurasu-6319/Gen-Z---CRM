@@ -1,7 +1,7 @@
 // server/routes/attendance.js
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne } = require('../mongodb-admin');
 
 // GET all (admin) or own records
 router.get('/', auth, async (req, res) => {
@@ -61,6 +61,7 @@ router.post('/checkin', auth, async (req, res) => {
       status: 'Checked In',
       attendance_breaks: []
     });
+    notifyAdminOfAttendance(req.user.id, 'Checked In');
     res.status(201).json(doc);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -76,6 +77,7 @@ router.post('/checkout/:id', auth, async (req, res) => {
       check_out_time: new Date().toISOString(),
       status: 'Checked Out'
     });
+    notifyAdminOfAttendance(req.user.id, 'Checked Out');
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -101,6 +103,7 @@ router.post('/break/start/:id', auth, async (req, res) => {
       status: 'On Break',
       attendance_breaks: breaks
     });
+    notifyAdminOfAttendance(req.user.id, 'Started Break', `Reason: ${reason || 'Break'}`);
     // Send back the created break id so frontend knows it
     res.status(201).json({ id: newBreak.id, ...updated });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -127,6 +130,7 @@ router.post('/break/end/:breakId', auth, async (req, res) => {
       status: 'Checked In',
       attendance_breaks: breaks
     });
+    notifyAdminOfAttendance(req.user.id, 'Ended Break');
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -154,5 +158,34 @@ router.delete('/:id', auth, async (req, res) => {
     res.json({ message: 'Attendance entry deleted' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+async function notifyAdminOfAttendance(userId, action, details = '') {
+  if (!process.env.GMAIL_USER || !process.env.ADMIN_EMAIL) return;
+  try {
+    const user = await getDoc('profiles', userId);
+    const username = user ? user.username : 'Unknown User';
+    
+    const { createTransporter } = require('../mailer');
+    const transporter = await createTransporter();
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4f46e5;">Attendance Update: ${username}</h2>
+        <p><strong>${username}</strong> has just performed an attendance action: <strong>${action}</strong>.</p>
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+          ${details ? `<p><strong>Details:</strong> ${details}</p>` : ''}
+        </div>
+      </div>
+    `;
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
+      to: process.env.ADMIN_EMAIL,
+      subject: `Attendance Update: ${username} - ${action}`,
+      html
+    });
+  } catch (err) {
+    console.error('Failed to notify admin of attendance:', err);
+  }
+}
 
 module.exports = router;

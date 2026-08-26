@@ -1,7 +1,7 @@
 // server/routes/userNotes.js
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { getCollection, addDoc, updateDoc, deleteDoc, findOne, getDb } = require('../firebase-admin');
+const { getCollection, addDoc, updateDoc, deleteDoc, findOne, getDb } = require('../mongodb-admin');
 
 // GET /api/user-notes
 router.get('/', auth, async (req, res) => {

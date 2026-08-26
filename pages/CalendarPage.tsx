@@ -74,6 +74,16 @@ const CalendarPage: React.FC<{ title: string }> = ({ title }) => {
     fetchUsersAndEvents();
   }, [fetchUsersAndEvents]);
 
+  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
+  useEffect(() => {
+    const handleDataUpdated = () => {
+      fetchUsersAndEvents();
+    };
+    window.addEventListener('crm:data_updated', handleDataUpdated);
+    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+  }, [fetchUsersAndEvents]);
+
+
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     setSelectedEvent({
       id: undefined,

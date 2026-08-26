@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const authMiddleware = require('../middleware/auth');
-const { getCollection, setDoc, addDoc } = require('../firebase-admin');
+const { getCollection, setDoc, addDoc } = require('../mongodb-admin');
 
 const COLLECTIONS = [
   'profiles', 'roles', 'projects', 'tasks', 'attendance', 'leave_requests', 

@@ -1,7 +1,7 @@
 // server/routes/notifications.js — Firebase Firestore version
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const { getCollection, updateDoc, addDoc, getDb } = require('../firebase-admin');
+const { getCollection, updateDoc, addDoc, getDb } = require('../mongodb-admin');
 
 router.get('/', auth, async (req, res) => {
   try {

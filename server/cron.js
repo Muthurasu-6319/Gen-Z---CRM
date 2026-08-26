@@ -1,12 +1,12 @@
 const cron = require('node-cron');
 const { createTransporter } = require('./mailer');
-const { getCollection, getDoc } = require('./firebase-admin');
+const { getCollection, getDoc } = require('./mongodb-admin');
 
 function initCronJobs() {
   // Run everyday at 8:00 AM
   cron.schedule('0 8 * * *', async () => {
     console.log('Running daily reminder cron job...');
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.GMAIL_USER) {
       console.log('Resend not configured, skipping reminders.');
       return;
     }
@@ -40,7 +40,7 @@ function initCronJobs() {
                 </div>
               `;
               await transporter.sendMail({
-                from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+                from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
                 to: user.email,
                 subject: `Reminder: ${event.title} is tomorrow`,
                 html
@@ -73,7 +73,7 @@ function initCronJobs() {
                 </div>
               `;
               await transporter.sendMail({
-                from: process.env.RESEND_FROM || 'onboarding@resend.dev',
+                from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
                 to: user.email,
                 subject: `Reminder: Meeting "${meeting.title}" is tomorrow`,
                 html

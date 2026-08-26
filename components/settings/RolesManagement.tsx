@@ -80,6 +80,17 @@ const RolesManagement: React.FC = () => {
         });
     };
 
+    const handleBulkSelectPage = (page: PageId, selectAll: boolean) => {
+        setDraftPermissions((prev: any) => {
+            const updated = { ...prev };
+            updated[page] = { ...(updated[page] || {}) };
+            ['view', 'create', 'edit', 'delete'].forEach(action => {
+                updated[page][action] = selectAll;
+            });
+            return updated;
+        });
+    };
+
     const handleSavePermissions = async (role: Role) => {
         try {
             await api.put(`/api/roles/${role.id}`, { ...role, permissions: draftPermissions });
@@ -175,7 +186,35 @@ const RolesManagement: React.FC = () => {
                             {expandedRoleId === role.id && (
                                 <div className="p-4 border-t bg-white">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h4 className="font-semibold text-gray-700">Edit Permissions for {role.name}</h4>
+                                        <div className="flex items-center space-x-4">
+                                            <h4 className="font-semibold text-gray-700">Edit Permissions for {role.name}</h4>
+                                            <label className="flex items-center space-x-2 cursor-pointer text-sm text-gray-700 font-medium bg-gray-100 px-3 py-1.5 rounded-md hover:bg-gray-200 transition-colors">
+                                                <input 
+                                                    type="checkbox"
+                                                    checked={PAGES.every(page => 
+                                                        draftPermissions?.[page]?.view &&
+                                                        draftPermissions?.[page]?.create &&
+                                                        draftPermissions?.[page]?.edit &&
+                                                        draftPermissions?.[page]?.delete
+                                                    )}
+                                                    onChange={(e) => {
+                                                        const isChecked = e.target.checked;
+                                                        setDraftPermissions((prev: any) => {
+                                                            const updated = { ...prev };
+                                                            PAGES.forEach(page => {
+                                                                updated[page] = { ...(updated[page] || {}) };
+                                                                ['view', 'create', 'edit', 'delete'].forEach(action => {
+                                                                    updated[page][action] = isChecked;
+                                                                });
+                                                            });
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                    className="rounded text-primary focus:ring-primary h-4 w-4"
+                                                />
+                                                <span>Select All</span>
+                                            </label>
+                                        </div>
                                         <button 
                                             onClick={() => handleSavePermissions(role)}
                                             className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark transition-colors"
@@ -186,8 +225,22 @@ const RolesManagement: React.FC = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                         {PAGES.map(page => (
                                             <div key={page} className="border p-3 rounded-md bg-gray-50 shadow-sm">
-                                                <div className="font-semibold text-sm mb-3 capitalize text-primary border-b pb-1">
-                                                    {page.replace('-', ' ')}
+                                                <div className="font-semibold text-sm mb-3 capitalize text-primary border-b pb-1 flex justify-between items-center">
+                                                    <span>{page.replace('-', ' ')}</span>
+                                                    <label className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 font-normal">
+                                                        <input 
+                                                            type="checkbox"
+                                                            checked={
+                                                                !!draftPermissions?.[page]?.view &&
+                                                                !!draftPermissions?.[page]?.create &&
+                                                                !!draftPermissions?.[page]?.edit &&
+                                                                !!draftPermissions?.[page]?.delete
+                                                            }
+                                                            onChange={(e) => handleBulkSelectPage(page, e.target.checked)}
+                                                            className="rounded text-primary focus:ring-primary h-3 w-3"
+                                                        />
+                                                        <span>All</span>
+                                                    </label>
                                                 </div>
                                                 <div className="flex flex-col space-y-2 text-sm">
                                                     {['view', 'create', 'edit', 'delete'].map(action => (

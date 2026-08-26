@@ -52,20 +52,38 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, eventT
   const [end, setEnd] = useState('');
   const [assignedTo, setAssignedTo] = useState<SelectOption[]>([]);
   
+  const [allStaff, setAllStaff] = useState<any[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('All');
   const [staffOptions, setStaffOptions] = useState<SelectOption[]>([]);
 
   useEffect(() => {
     const fetchStaff = async () => {
       try {
         const data = await api.get('/api/users');
-        const staff = data.filter((u: any) => u.role === 'Staff' || u.role === 'Admin');
-        setStaffOptions(staff.map((s: any) => ({ value: s.id, label: s.username })));
+        const staff = data.filter((u: any) => u.role !== 'Client');
+        setAllStaff(staff);
       } catch (err) {
         console.error("Error fetching staff:", err);
       }
     };
     if (isOpen) fetchStaff();
   }, [isOpen]);
+
+  // Derived state for roles and filtering
+  const uniqueRoles = Array.from(new Set(
+    allStaff
+      .map((s) => s.role)
+      .filter(Boolean)
+      .map((role) => role.charAt(0).toUpperCase() + role.slice(1).toLowerCase())
+  ));
+
+  useEffect(() => {
+    const filtered = selectedRole === 'All' 
+      ? allStaff 
+      : allStaff.filter((s) => s.role && s.role.toLowerCase() === selectedRole.toLowerCase());
+    
+    setStaffOptions(filtered.map((s: any) => ({ value: s.id, label: `${s.username} (${s.role || 'Staff'})` })));
+  }, [selectedRole, allStaff]);
 
   useEffect(() => {
     if (eventToEdit && isOpen) {
@@ -118,9 +136,12 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, eventT
           <InputField label="Start Time" type="datetime-local" value={start} onChange={e => setStart(e.target.value)} required />
           <InputField label="End Time" type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} required />
         </div>
-        <div>
-            <label className="block text-sm font-medium text-gray-700">Assigned To</label>
-            <Select isMulti options={staffOptions} value={assignedTo} onChange={(opts) => setAssignedTo(opts as SelectOption[])} className="mt-1" classNamePrefix="react-select" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SelectField label="Filter by Role" value={selectedRole} onChange={(e: any) => setSelectedRole(e.target.value)} options={['All', ...uniqueRoles]} />
+            <div>
+                <label className="block text-sm font-medium text-gray-700">Assign To</label>
+                <Select isMulti options={staffOptions} value={assignedTo} onChange={(opts) => setAssignedTo(opts as SelectOption[])} className="mt-1" classNamePrefix="react-select" />
+            </div>
         </div>
         <div className="flex justify-end space-x-3 pt-4">
           <button type="button" onClick={onClose} disabled={isSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">Cancel</button>
@@ -137,6 +158,15 @@ const InputField: React.FC<any> = ({ label, ...props }) => (
     <div>
       <label className="block text-sm font-medium text-gray-700">{label}</label>
       <input {...props} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"/>
+    </div>
+);
+
+const SelectField: React.FC<any> = ({ label, options, ...props }) => (
+    <div>
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        <select {...props} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
     </div>
 );
 
