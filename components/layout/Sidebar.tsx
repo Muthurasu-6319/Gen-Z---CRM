@@ -172,7 +172,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, activePage, setActivePage }) 
           {visibleItems.map((item) => {
             const hasChildren = item.children && item.children.length > 0;
             const isExpanded = expandedMenus.includes(item.id);
-            const isParentActive = activePage === item.id || item.children?.some(c => c.id === activePage);
+            const isParentActive = activePage === item.id || 
+                                   (activePage.startsWith(item.id + '/')) ||
+                                   (activePage.startsWith('staff-attendance-detail') && item.id === 'attendance') ||
+                                   item.children?.some(c => c.id === activePage);
 
             return (
               <div key={item.id}>

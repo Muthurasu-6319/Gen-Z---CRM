@@ -118,10 +118,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         <button onClick={handleClockAction} className="inline-flex items-center bg-blue-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600 transition-colors">
           <PlayIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Resume</span>
         </button>);
-      default: return (
-        <button onClick={handleClockAction} className="inline-flex items-center bg-secondary text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-emerald-600 transition-colors">
-          <ClockIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Check In</span>
-        </button>);
+      case 'Checked Out':
+      default: 
+        if (entryId) {
+          return (
+            <span className="inline-flex items-center text-gray-500 bg-gray-100 px-3 py-2 rounded-md text-sm font-medium border border-gray-200">
+              Checked Out Today
+            </span>
+          );
+        }
+        return (
+          <button onClick={handleClockAction} className="inline-flex items-center bg-secondary text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-emerald-600 transition-colors">
+            <ClockIcon className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Check In</span>
+          </button>);
     }
   };
 

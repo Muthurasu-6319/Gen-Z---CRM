@@ -43,7 +43,6 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
 
     const fetchDetails = useCallback(async () => {
         if (!profileId) return;
-        // // setLoading(true) removed for zero-loading UI removed for zero-loading UI
         try {
             const [profiles, attendance, allLeaves] = await Promise.all([
                 api.get('/api/users'),
@@ -74,22 +73,18 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
 
     useEffect(() => { fetchDetails(); }, [fetchDetails]);
 
-  // Auto-refresh on ANY CRM data update (Global Real-Time Sync)
-  useEffect(() => {
-    const handleDataUpdated = () => {
-      fetchDetails();
-    };
-    window.addEventListener('crm:data_updated', handleDataUpdated);
-    return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
-  }, [fetchDetails]);
-
+    useEffect(() => {
+      const handleDataUpdated = () => fetchDetails();
+      window.addEventListener('crm:data_updated', handleDataUpdated);
+      return () => window.removeEventListener('crm:data_updated', handleDataUpdated);
+    }, [fetchDetails]);
 
     const handleDeleteEntry = async (entryId: number) => {
         if (!window.confirm("Are you sure you want to delete this entire entry (including breaks)?")) return;
         try {
             await api.delete(`/api/attendance/${entryId}`);
             alert('Entry deleted.');
-            fetchDetails(); // Refresh the list
+            fetchDetails();
         } catch (err: any) {
             alert(`Failed to delete entry: ${err.message || err}`);
         }
@@ -113,19 +108,25 @@ const StaffAttendanceDetailPage: React.FC<StaffDetailPageProps> = ({ profileId, 
                                 <div key={entry.id} className="border-t pt-3 mt-3 first:mt-0 first:border-t-0">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p><strong>Check In:</strong> {new Date(entry.check_in_time).toLocaleTimeString()}</p>
-                                            {entry.check_out_time ? (
-                                                <p><strong>Check Out:</strong> {new Date(entry.check_out_time).toLocaleTimeString()}</p>
+                                            {entry.status === 'Leave' || entry.status === 'Absent' ? (
+                                                <p className="text-red-500 font-semibold text-lg">Status: {entry.status}</p>
                                             ) : (
-                                                <p className="text-yellow-600"><strong>Status:</strong> {entry.status}</p>
+                                                <>
+                                                    <p><strong>Check In:</strong> {new Date(entry.check_in_time).toLocaleTimeString()}</p>
+                                                    {entry.check_out_time ? (
+                                                        <p><strong>Check Out:</strong> {new Date(entry.check_out_time).toLocaleTimeString()}</p>
+                                                    ) : (
+                                                        <p className="text-yellow-600"><strong>Status:</strong> {entry.status}</p>
+                                                    )}
+                                                    <p className="font-semibold mt-1">Total Duration: {calculateDuration(entry.check_in_time, entry.check_out_time)}</p>
+                                                </>
                                             )}
-                                            <p className="font-semibold mt-1">Total Duration: {calculateDuration(entry.check_in_time, entry.check_out_time)}</p>
                                         </div>
                                         {canDelete && (
                                             <button onClick={() => handleDeleteEntry(entry.id)} className="p-1 text-red-400 hover:text-red-600" title="Delete Entry"><TrashIcon className="h-5 w-5"/></button>
                                         )}
                                     </div>
-                                    {entry.attendance_breaks && entry.attendance_breaks.length > 0 && (
+                                    {entry.status !== 'Leave' && entry.status !== 'Absent' && entry.attendance_breaks && entry.attendance_breaks.length > 0 && (
                                         <div className="mt-2 pl-5 text-sm">
                                             <p className="font-semibold">Breaks:</p>
                                             <ul className="list-disc list-inside text-gray-600">

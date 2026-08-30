@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../apiClient';
 import { User, EmailTemplate } from '../types';
+import { usePermissions } from '../components/auth/PermissionsContext';
 import { PaperAirplaneIcon, MailIcon, TrashIcon } from '../components/icons/Icons';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -71,6 +72,9 @@ const MailViewer: React.FC<{ mail: Mail; onClose:()=>void; onDelete:(id:number)=
 
 // ── Main MailboxPage ──────────────────────────────────────────────────────────
 const MailboxPage: React.FC<{ title: string; defaultTab?: string }> = ({ title, defaultTab }) => {
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission('mailbox', 'create');
+  const canDelete = hasPermission('mailbox', 'delete');
   const [tab, setTab] = useState<'inbox'|'compose'>(defaultTab === 'inbox' ? 'inbox' : 'compose');
   const [users, setUsers] = useState<User[]>([]);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -173,7 +177,9 @@ const MailboxPage: React.FC<{ title: string; defaultTab?: string }> = ({ title, 
       {/* Tabs — only show when NOT in inbox-only mode */}
       {defaultTab !== 'inbox' && (
         <div style={{ display:'flex', gap:4, borderBottom:'2px solid #e5e7eb', marginBottom:24 }}>
-          <button style={tabStyle(tab==='compose')} onClick={()=>setTab('compose')}>✉️ Compose</button>
+          {canCreate && (
+            <button style={tabStyle(tab==='compose')} onClick={()=>setTab('compose')}>✉️ Compose</button>
+          )}
           <button style={tabStyle(tab==='inbox')} onClick={()=>{ setTab('inbox'); fetchInbox(); }}>
             📥 Inbox {unreadCount>0 && <span style={{ background:'#ef4444', color:'#fff', borderRadius:99, padding:'1px 8px', fontSize:12, marginLeft:6 }}>{unreadCount}</span>}
           </button>
@@ -292,7 +298,7 @@ const MailboxPage: React.FC<{ title: string; defaultTab?: string }> = ({ title, 
       )}
 
       {/* Mail Viewer */}
-      {selectedMail && <MailViewer mail={selectedMail} onClose={()=>setSelectedMail(null)} onDelete={deleteMail} />}
+      {selectedMail && <MailViewer mail={selectedMail} onClose={()=>setSelectedMail(null)} onDelete={canDelete ? deleteMail : () => {}} />}
     </div>
   );
 };

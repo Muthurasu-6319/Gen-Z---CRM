@@ -195,6 +195,12 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ error: 'Cannot update the environment fallback Admin profile from the UI. Please update the .env file directly or use a database Admin account.' });
     }
 
+    // Fetch old user for comparison
+    const oldUser = await getDoc('profiles', req.params.id);
+    if (!oldUser) {
+      return res.status(404).json({ error: 'Profile not found in database' });
+    }
+
     const updated = await updateDoc('profiles', req.params.id, updateData);
     if (!updated) {
       return res.status(404).json({ error: 'Profile not found in database' });
@@ -202,10 +208,32 @@ router.put('/:id', auth, async (req, res) => {
     const { password: _pw, ...safeUser } = updated;
     
     if (updated.role === 'Client') {
+      // Fetch updater name
+      let updaterName = 'System/Admin';
+      if (req.user && req.user.id) {
+          try {
+              const updater = await getDoc('profiles', req.user.id);
+              if (updater && updater.username) updaterName = updater.username;
+          } catch(e) {}
+      }
+
+      // Find what changed
+      let changes = [];
+      if (oldUser.username !== updated.username) changes.push(`<b>Client Name:</b> changed to ${updated.username}`);
+      if (oldUser.mobile !== updated.mobile) changes.push(`<b>Mobile:</b> changed to ${updated.mobile}`);
+      if (oldUser.location !== updated.location) changes.push(`<b>Location:</b> changed to ${updated.location}`);
+      if (oldUser.requirements !== updated.requirements) changes.push(`<b>Requirements:</b> changed to ${updated.requirements}`);
+      if (oldUser.notes !== updated.notes) changes.push(`<b>Notes:</b> changed`);
+      if (oldUser.email !== updated.email) changes.push(`<b>Email:</b> changed to ${updated.email}`);
+      
+      const changesHtml = changes.length > 0 
+          ? `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;"><h4>Changes Made:</h4><ul>${changes.map(c => `<li>${c}</li>`).join('')}</ul></div>` 
+          : '';
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
           <h2 style="color: #4f46e5;">Client Updated</h2>
-          <p>Client details have been updated in the CRM.</p>
+          <p>Client details have been updated in the CRM by <strong>${updaterName}</strong>.</p>
           <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
             <table style="width: 100%; text-align: left; border-collapse: collapse;">
               <tr><td style="padding: 4px 0;"><strong>Client Name:</strong></td><td>${updated.username}</td></tr>
@@ -214,6 +242,7 @@ router.put('/:id', auth, async (req, res) => {
               <tr><td style="padding: 4px 0;"><strong>Requirements:</strong></td><td>${updated.requirements || 'N/A'}</td></tr>
               <tr><td style="padding: 4px 0;"><strong>Notes:</strong></td><td>${updated.notes || 'N/A'}</td></tr>
             </table>
+            ${changesHtml}
           </div>
         </div>
       `;

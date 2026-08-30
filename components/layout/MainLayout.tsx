@@ -133,7 +133,7 @@ const LayoutContent: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('page') || 'dashboard';
   });
-  const { loading, hasPermission } = usePermissions();
+  const { loading, hasPermission, currentProfile } = usePermissions();
 
   const handleSetActivePage = useCallback((page: string) => {
     setActivePage(page);
@@ -168,6 +168,12 @@ const LayoutContent: React.FC = () => {
     }
 
     let canViewPage = hasPermission(pageId.split('/')[0], 'view'); // e.g., "projects" permission ah check pannu
+    
+    // Attendance page is viewable by all Staff/Admins, even if missing strict permission
+    if (pageId === 'attendance' && currentProfile?.role !== 'Client') {
+        canViewPage = true;
+    }
+
     if (pageId === 'team-chat') {
         canViewPage = canViewPage || hasPermission('chat-staff', 'view') || hasPermission('chat-client', 'view') || hasPermission('chat-dm', 'view');
     }

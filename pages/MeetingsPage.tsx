@@ -13,7 +13,10 @@ import { User, Meeting } from '../types';
 // Select component ippo thevai illa
 
 const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
-  const { currentProfile } = usePermissions();
+  const { currentProfile, hasPermission } = usePermissions();
+  const canCreate = hasPermission('meetings', 'create');
+  const canEdit = hasPermission('meetings', 'edit');
+  const canDelete = hasPermission('meetings', 'delete');
   const [meetings, setMeetings] = useState<any[]>([]);
   const [staffList, setStaffList] = useState<User[]>([]);
   const [clientList, setClientList] = useState<User[]>([]);
@@ -89,6 +92,7 @@ const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
   };
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
+    if (!canCreate) return;
     clearForm();
     setStartTime(selectInfo.start.toISOString().slice(0, 16));
     setEndTime(selectInfo.end.toISOString().slice(0, 16));
@@ -233,15 +237,15 @@ const MeetingsPage: React.FC<{ title: string }> = ({ title }) => {
           )}
 
           <div className="flex justify-end space-x-3 pt-4">
-              {canModify && selectedMeeting && (
+              {canDelete && canModify && selectedMeeting && (
                   <button onClick={handleDeleteMeeting} className="px-4 py-2 text-sm text-white bg-red-600 rounded-md">Delete</button>
               )}
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 text-sm bg-gray-200 rounded-md">Cancel</button>
-              {(canModify || !selectedMeeting) && (
+              {(canEdit && canModify && selectedMeeting) || (canCreate && !selectedMeeting) ? (
                   <button onClick={handleSaveMeeting} disabled={isSaving} className="px-4 py-2 text-sm text-white bg-primary rounded-md">
                       {isSaving ? 'Saving...' : (selectedMeeting ? 'Save Changes' : 'Create Meeting')}
                   </button>
-              )}
+              ) : null}
           </div>
         </div>
       </Modal>

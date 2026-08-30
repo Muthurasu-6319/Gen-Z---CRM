@@ -236,7 +236,7 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
                recipient_profile_id: admin.id,
                message: headline.replace(/<[^>]*>?/gm, ''), // Strip HTML tags for clean text
                related_item_type: collectionName,
-               related_item_id: targetData.id || null,
+               related_item_id: targetData ? targetData.id : null,
                is_read: 0
            });
        }

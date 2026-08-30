@@ -16,7 +16,7 @@ router.get('/', auth, async (req, res) => {
     });
 
     const userProfile = profiles.find(pr => pr.id === req.user.id);
-    let hasAllAccess = req.user.role === 'Admin';
+    let hasAllAccess = req.user.role !== 'Client';
     
     if (!hasAllAccess && userProfile && userProfile.permissions) {
        let perms = userProfile.permissions;
@@ -77,7 +77,7 @@ router.post('/checkout/:id', auth, async (req, res) => {
       check_out_time: new Date().toISOString(),
       status: 'Checked Out'
     });
-    notifyAdminOfAttendance(req.user.id, 'Checked Out');
+    notifyAdminOfCheckout(req.user.id, updated);
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -103,7 +103,6 @@ router.post('/break/start/:id', auth, async (req, res) => {
       status: 'On Break',
       attendance_breaks: breaks
     });
-    notifyAdminOfAttendance(req.user.id, 'Started Break', `Reason: ${reason || 'Break'}`);
     // Send back the created break id so frontend knows it
     res.status(201).json({ id: newBreak.id, ...updated });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -130,7 +129,6 @@ router.post('/break/end/:breakId', auth, async (req, res) => {
       status: 'Checked In',
       attendance_breaks: breaks
     });
-    notifyAdminOfAttendance(req.user.id, 'Ended Break');
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -159,32 +157,86 @@ router.delete('/:id', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+const calculateDuration = (start, end) => {
+  if (!end) return 'Ongoing';
+  const diff = new Date(end).getTime() - new Date(start).getTime();
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h ${minutes}m`;
+};
+
 async function notifyAdminOfAttendance(userId, action, details = '') {
-  if (!process.env.GMAIL_USER || !process.env.ADMIN_EMAIL) return;
   try {
     const user = await getDoc('profiles', userId);
+    if (user && user.email === 'genzdevoff@gmail.com') return;
+    if (userId === 'admin-env' && process.env.ADMIN_EMAIL === 'genzdevoff@gmail.com') return;
     const username = user ? user.username : 'Unknown User';
     
     const { createTransporter } = require('../mailer');
     const transporter = await createTransporter();
+    const actionText = action === 'Checked In' 
+      ? '<strong>This user has logged in today.</strong>'
+      : `has just performed an attendance action: <strong>${action}</strong>.`;
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
         <h2 style="color: #4f46e5;">Attendance Update: ${username}</h2>
-        <p><strong>${username}</strong> has just performed an attendance action: <strong>${action}</strong>.</p>
+        <p><strong>${username}</strong> ${actionText}</p>
         <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
           <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+          <p><strong>Status:</strong> ${action}</p>
           ${details ? `<p><strong>Details:</strong> ${details}</p>` : ''}
         </div>
       </div>
     `;
     await transporter.sendMail({
       from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-      to: process.env.ADMIN_EMAIL,
+      to: 'genzdevoff@gmail.com',
       subject: `Attendance Update: ${username} - ${action}`,
       html
     });
   } catch (err) {
     console.error('Failed to notify admin of attendance:', err);
+  }
+}
+
+async function notifyAdminOfCheckout(userId, record) {
+  try {
+    const user = await getDoc('profiles', userId);
+    if (user && user.email === 'genzdevoff@gmail.com') return;
+    if (userId === 'admin-env' && process.env.ADMIN_EMAIL === 'genzdevoff@gmail.com') return;
+    const username = user ? user.username : 'Unknown User';
+    
+    const { createTransporter } = require('../mailer');
+    const transporter = await createTransporter();
+    
+    const totalDuration = calculateDuration(record.check_in_time, record.check_out_time);
+    const breaksHtml = (record.attendance_breaks || []).map(b => 
+      `<li>${new Date(b.break_start_time).toLocaleTimeString()} to ${new Date(b.break_end_time).toLocaleTimeString()} (${calculateDuration(b.break_start_time, b.break_end_time)}) - <em>Reason: ${b.reason || 'N/A'}</em></li>`
+    ).join('');
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #4f46e5;">End of Day Summary: ${username}</h2>
+        <p><strong>${username}</strong> has checked out for the day.</p>
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+          <p><strong>Check-In Time:</strong> ${new Date(record.check_in_time).toLocaleString()}</p>
+          <p><strong>Check-Out Time:</strong> ${new Date(record.check_out_time).toLocaleString()}</p>
+          <p><strong>Total Working Hours:</strong> ${totalDuration}</p>
+          
+          <h4 style="margin-bottom: 5px;">Breaks Taken:</h4>
+          ${breaksHtml ? `<ul>${breaksHtml}</ul>` : '<p>No breaks taken today.</p>'}
+        </div>
+      </div>
+    `;
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
+      to: 'genzdevoff@gmail.com',
+      subject: `End of Day Attendance: ${username}`,
+      html
+    });
+  } catch (err) {
+    console.error('Failed to notify admin of checkout:', err);
   }
 }
 

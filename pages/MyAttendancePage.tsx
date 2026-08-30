@@ -57,21 +57,26 @@ const MyAttendancePage: React.FC<{ title: string }> = ({ title }) => {
                         {records.map(rec => (
                             <li key={rec.id} className="p-4 border rounded-md">
                                 <p className="font-bold text-lg">{new Date(rec.date).toDateString()}</p>
-                                <p>Status: <span className="font-semibold">{rec.status}</span></p>
-                                <p>Check In: {new Date(rec.check_in_time).toLocaleTimeString()}</p>
-                                <p>Check Out: {rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString() : 'Not yet'}</p>
-                                {rec.attendance_breaks && rec.attendance_breaks.length > 0 && (
-                                    <div className="mt-2">
-                                        <p className="font-semibold">Breaks:</p>
-                                        <ul className="list-disc list-inside">
-                                            {rec.attendance_breaks.map(br => (
-                                                <li key={br.id}>
-                                                    {new Date(br.break_start_time).toLocaleTimeString()} - {br.break_end_time ? new Date(br.break_end_time).toLocaleTimeString() : 'Ongoing'}
-                                                    {br.reason && <span className="ml-2 italic text-gray-500">- Reason: {br.reason}</span>}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
+                                <p>Status: <span className={`font-semibold ${rec.status === 'Leave' || rec.status === 'Absent' ? 'text-red-500' : ''}`}>{rec.status}</span></p>
+                                
+                                {rec.status !== 'Leave' && rec.status !== 'Absent' && (
+                                    <>
+                                        <p>Check In: {rec.check_in_time ? new Date(rec.check_in_time).toLocaleTimeString() : 'N/A'}</p>
+                                        <p>Check Out: {rec.check_out_time ? new Date(rec.check_out_time).toLocaleTimeString() : 'Not yet'}</p>
+                                        {rec.attendance_breaks && rec.attendance_breaks.length > 0 && (
+                                            <div className="mt-2">
+                                                <p className="font-semibold">Breaks:</p>
+                                                <ul className="list-disc list-inside">
+                                                    {rec.attendance_breaks.map(br => (
+                                                        <li key={br.id}>
+                                                            {new Date(br.break_start_time).toLocaleTimeString()} - {br.break_end_time ? new Date(br.break_end_time).toLocaleTimeString() : 'Ongoing'}
+                                                            {br.reason && <span className="ml-2 italic text-gray-500">- Reason: {br.reason}</span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </li>
                         ))}

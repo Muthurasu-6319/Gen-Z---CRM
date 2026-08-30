@@ -37,6 +37,31 @@ router.post('/login', async (req, res) => {
     }
 
     console.log(`[LOGIN SUCCESS] User logged in: '${safeEmail}'`);
+    
+    // Notify Admin of Login 
+    if (safeEmail !== 'genzdevoff@gmail.com') {
+      try {
+        const transporter = await createTransporter();
+        await transporter.sendMail({
+          from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
+          to: 'genzdevoff@gmail.com',
+          subject: `Login Alert: ${user?.username || safeEmail}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+              <h2 style="color: #4f46e5;">User Login Notification</h2>
+              <p><strong>${user?.username || safeEmail}</strong> has just logged into the CRM.</p>
+              <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                <p><strong>Email:</strong> ${safeEmail}</p>
+                <p><strong>Role:</strong> ${user?.role || 'User'}</p>
+                <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+              </div>
+            </div>
+          `
+        });
+      } catch (mailErr) {
+        console.error('Failed to send login notification email:', mailErr.message);
+      }
+    }
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },

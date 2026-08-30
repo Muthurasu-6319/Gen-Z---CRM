@@ -1,8 +1,38 @@
 const cron = require('node-cron');
 const { createTransporter } = require('./mailer');
-const { getCollection, getDoc } = require('./mongodb-admin');
+const { getCollection, getDoc, addDoc } = require('./mongodb-admin');
 
 function initCronJobs() {
+  // Run everyday at 23:55 to mark absent staff as Leave
+  cron.schedule('55 23 * * *', async () => {
+    console.log('Running daily attendance check cron job...');
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const profiles = await getCollection('profiles');
+      const attendance = await getCollection('attendance');
+      
+      for (const profile of profiles) {
+        if (profile.role === 'Staff' || profile.role === 'Admin') {
+          // Check if there is an attendance record for today
+          const hasAttendance = attendance.some(a => a.profile_id === profile.id && a.date === todayStr);
+          if (!hasAttendance) {
+            console.log(`Marking ${profile.username} as Leave for ${todayStr}`);
+            await addDoc('attendance', {
+              profile_id: profile.id,
+              date: todayStr,
+              check_in_time: null,
+              check_out_time: null,
+              status: 'Leave',
+              attendance_breaks: []
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error running daily attendance check:', e);
+    }
+  });
+
   // Run everyday at 8:00 AM
   cron.schedule('0 8 * * *', async () => {
     console.log('Running daily reminder cron job...');
