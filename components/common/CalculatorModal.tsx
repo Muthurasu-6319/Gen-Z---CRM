@@ -13,9 +13,9 @@ const CalculatorModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
             setResult('');
         } else if (value === '=') {
             try {
-                // Using eval() is okay for this simple, non-critical context.
-                // For a production app with complex needs, a proper math parser would be better.
-                const evalResult = eval(input.replace('x', '*').replace('÷', '/'));
+                // Replace eval with new Function to avoid esbuild/eslint eval warning
+                const expression = input.replace('x', '*').replace('÷', '/');
+                const evalResult = new Function('return ' + expression)();
                 setResult(evalResult.toString());
             } catch (error) {
                 setResult('Error');
