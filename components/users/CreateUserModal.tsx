@@ -182,7 +182,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onCr
                 {role !== 'Client' && (
                 <div className="mt-4">
                     {!defaultRole ? (
-                        <SelectField label="Role" id="role" value={role} onChange={(e: any) => setRole(e.target.value)} options={Array.from(new Set(['Admin', ...roles.map(r => r.name)]))} />
+                        <SelectField label="Role" id="role" value={role} onChange={(e: any) => setRole(e.target.value)} options={['Admin', ...roles.filter(r => r.name.toLowerCase() !== 'admin').map(r => r.name)]} />
                     ) : (
                         <input type="hidden" value={role} />
                     )}

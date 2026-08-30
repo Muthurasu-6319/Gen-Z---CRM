@@ -133,7 +133,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, user, on
         )}
         {role !== 'Client' && (
         <div className="mt-4">
-          <SelectField label="Role" id="role" value={role} onChange={e => setRole(e.target.value as any)} options={Array.from(new Set(['Admin', ...roles.map(r => r.name)]))} disabled={readOnly} />
+          <SelectField label="Role" id="role" value={role} onChange={e => setRole(e.target.value as any)} options={['Admin', ...roles.filter(r => r.name.toLowerCase() !== 'admin').map(r => r.name)]} disabled={readOnly} />
         </div>
         )}
 
