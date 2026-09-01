@@ -78,7 +78,10 @@ router.post('/', auth, async (req, res) => {
   if (req.user.role !== 'Admin')
     return res.status(403).json({ error: 'Admin only' });
 
-  const { username, email, password, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, total_paid, total_pending, services, emp_id, requirements, location, notes } = req.body;
+  let { username, email, password, role, designation, mobile, address, gpay, bankDetails, bloodGroup, permissions, total_paid, total_pending, services, emp_id, requirements, location, notes } = req.body;
+  
+  if (email) email = email.trim().toLowerCase();
+  
   if (!username) return res.status(400).json({ error: 'username required' });
   if (role !== 'Client' && (!email || !password)) {
     return res.status(400).json({ error: 'email and password required for staff' });
@@ -99,7 +102,7 @@ router.post('/', auth, async (req, res) => {
     // Create new profile object
     const newProfile = {
       username,
-      email: email ? email.toLowerCase() : '',
+      email: email ? email.trim().toLowerCase() : '',
       password: hashed,
       role: role || 'Staff',
       designation: designation || null,
@@ -168,7 +171,7 @@ router.put('/:id', auth, async (req, res) => {
   try {
     const updateData = {};
     if (username !== undefined) updateData.username = username;
-    if (email !== undefined) updateData.email = email.toLowerCase();
+    if (email !== undefined) updateData.email = email.trim().toLowerCase();
     if (role !== undefined) updateData.role = role;
     if (designation !== undefined) updateData.designation = designation;
     if (mobile !== undefined) updateData.mobile = mobile;

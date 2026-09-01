@@ -1,6 +1,6 @@
 // server/mongodb-admin.js — MongoDB Mongoose Adapter
 const dns = require('dns');
-dns.setServers(['8.8.8.8', '8.8.4.4']); // Bypass buggy local DNS server for SRV record lookup
+// dns.setServers(['8.8.8.8', '8.8.4.4']); // Bypass buggy local DNS server for SRV record lookup
 
 const mongoose = require('mongoose');
 

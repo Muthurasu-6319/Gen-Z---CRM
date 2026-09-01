@@ -42,7 +42,7 @@ router.post('/login', async (req, res) => {
     if (safeEmail !== 'genzdevoff@gmail.com') {
       try {
         const transporter = await createTransporter();
-        await transporter.sendMail({
+        transporter.sendMail({
           from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
           to: 'genzdevoff@gmail.com',
           subject: `Login Alert: ${user?.username || safeEmail}`,
@@ -57,9 +57,11 @@ router.post('/login', async (req, res) => {
               </div>
             </div>
           `
+        }).catch(mailErr => {
+          console.error('Failed to send login notification email:', mailErr.message);
         });
       } catch (mailErr) {
-        console.error('Failed to send login notification email:', mailErr.message);
+        console.error('Failed to init login notification email:', mailErr.message);
       }
     }
 
