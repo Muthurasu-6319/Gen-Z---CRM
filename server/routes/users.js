@@ -14,9 +14,10 @@ async function sendWelcomeEmail(user, rawPassword) {
   try {
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-        <h2 style="color: #4f46e5;">Welcome to GENZ CRM</h2>
+        <h2 style="color: #4f46e5; text-align: center;">Welcome to GENZ CRM! 🎉</h2>
         <p>Hello <strong>${user.username}</strong>,</p>
-        <p>Your account has been successfully created. Here are your account details:</p>
+        <p style="font-size: 16px; line-height: 1.5; color: #333;">We are thrilled to welcome you to the GENZ CRM team! Our platform is designed to help you collaborate effortlessly, manage tasks efficiently, and drive success. We're excited to have you on board.</p>
+        <p>Your account has been successfully created. Here are your login details:</p>
         
         <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
           <p><strong>Name:</strong> ${user.username}</p>
