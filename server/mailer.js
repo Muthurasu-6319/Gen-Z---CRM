@@ -101,8 +101,10 @@ async function sendAssignmentEmail(userEmail, username, itemType, itemTitle, des
 async function notifyAssignedUsers(userIds, itemType, itemTitle, description = '', excludeUserId = null) {
   if (!userIds || !Array.isArray(userIds) || userIds.length === 0) return;
   try {
-    const placeholders = userIds.map(() => '?').join(',');
-    const [users] = await db.query(`SELECT id, username, email FROM profiles WHERE id IN (${placeholders})`, userIds);
+    const { getCollection } = require('./mongodb-admin');
+    const profiles = await getCollection('profiles');
+    const targetIds = userIds.map(id => String(id));
+    const users = profiles.filter(p => targetIds.includes(String(p.id)));
     for (const user of users) {
       if (user.email && String(user.id) !== String(excludeUserId)) {
         await sendAssignmentEmail(user.email, user.username, itemType, itemTitle, description);
