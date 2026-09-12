@@ -266,24 +266,33 @@ router.post('/:id/convert', auth, async (req, res) => {
     if (!leads || leads.length === 0) return res.status(404).json({ error: 'Lead not found' });
     const lead = leads[0];
     
-    // Create profile
+    // Create profile in MongoDB
+    const { addDoc, getDoc } = require('../mongodb-admin');
     const dummyEmail = lead.client_name.replace(/\s+/g, '').toLowerCase() + Math.floor(Math.random()*1000) + '@client.com';
     const bcrypt = require('bcryptjs');
     const hashed = await bcrypt.hash('12345', 10);
-    
-    await db.query(
-      `INSERT INTO profiles (username, email, password, role, mobile, address, requirements, notes, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [lead.client_name, dummyEmail, hashed, 'Client', lead.mobile_no || null, '', lead.requirements || null, lead.notes || null, lead.location || null]
-    );
 
+    const clientProfile = {
+      username: lead.client_name,
+      email: dummyEmail,
+      password: hashed,
+      role: 'Client',
+      mobile: lead.mobile_no || null,
+      address: '',
+      requirements: lead.requirements || null,
+      notes: lead.notes || null,
+      location: lead.location || null
+    };
+    
+    await addDoc('profiles', clientProfile);
     await db.query('DELETE FROM leads WHERE id = ?', [req.params.id]);
     
     // Fetch converter name
     let converterName = 'System/Admin';
     if (req.user && req.user.id) {
         try {
-            const [userRows] = await db.query('SELECT username FROM profiles WHERE id = ?', [req.user.id]);
-            if (userRows && userRows.length > 0) converterName = userRows[0].username;
+            const creator = await getDoc('profiles', req.user.id);
+            if (creator && creator.username) converterName = creator.username;
         } catch(e) {}
     }
     
