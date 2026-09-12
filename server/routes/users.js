@@ -3,58 +3,6 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const { getCollection, addDoc, updateDoc, deleteDoc, getDoc, findOne, setDoc } = require('../mongodb-admin');
-const { createTransporter, notifyAllStaff } = require('../mailer');
-
-async function sendWelcomeEmail(user, rawPassword) {
-  if (!process.env.GMAIL_USER) {
-    console.warn('Resend not configured, skipping welcome email.');
-    return;
-  }
-  const transporter = await createTransporter();
-  try {
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-        <h2 style="color: #4f46e5; text-align: center;">Welcome to GENZ CRM! ✨</h2>
-        <p>Hello <strong>${user.username}</strong>,</p>
-        <p style="font-size: 16px; line-height: 1.6; color: #444;">A very warm welcome to the GENZ CRM family! 🌟 We're absolutely delighted to have you with us. Our workspace is designed to make your daily tasks a breeze, foster amazing teamwork, and help you shine in your role. Let's create something wonderful together!</p>
-        <p style="font-size: 15px; color: #555;">Your account has been set up with care. Here are your login details:</p>
-        
-        <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
-          <p><strong>Name:</strong> ${user.username}</p>
-          <p><strong>Email ID:</strong> ${user.email}</p>
-          <p><strong>Password:</strong> ${rawPassword}</p>
-          <p><strong>Phone Number:</strong> ${user.mobile || 'N/A'}</p>
-          <p><strong>Designation:</strong> ${user.designation || 'N/A'}</p>
-          <p><strong>Access Role:</strong> ${user.role}</p>
-        </div>
-        
-        <p>You can log into the CRM platform at:</p>
-        <p><a href="https://crm.genzneuralx.com/" style="display: inline-block; padding: 10px 20px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 4px;">Login to CRM</a></p>
-        <p>URL: <a href="https://crm.genzneuralx.com/">https://crm.genzneuralx.com/</a></p>
-        <p>Please log in and change your password as soon as possible.</p>
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-            <h4 style="margin-bottom: 10px; color: #333;">Contact Details</h4>
-            <p style="margin: 0; color: #555;"><strong>GENZ NeuralX</strong></p>
-            <p style="margin: 0; color: #555;">Email: support@genzneuralx.com</p>
-            <p style="margin: 0; color: #555;">Website: www.genzneuralx.com</p>
-        </div>
-        
-        <p style="font-size: 12px; color: #888; margin-top: 20px;">This is an automated message from GENZ CRM.</p>
-      </div>
-    `;
-
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-      to: user.email,
-      subject: 'Welcome to GENZ CRM - Your Login Details',
-      html
-    });
-    console.log('Welcome email sent to', user.email);
-  } catch (e) {
-    console.error('Failed to send welcome email:', e);
-  }
-}
 
 // GET /api/users
 router.get('/', auth, async (req, res) => {
@@ -125,37 +73,6 @@ router.post('/', auth, async (req, res) => {
 
     const doc = await addDoc('profiles', newProfile);
     const { password: _pw, ...safeUser } = doc;
-    
-    // Send email asynchronously without blocking the response
-    if (role !== 'Client' && email && password) {
-      sendWelcomeEmail(newProfile, password);
-    } else if (role === 'Client') {
-      
-      let creatorName = 'System/Admin';
-      if (req.user && req.user.id) {
-          try {
-              const creator = await getDoc('profiles', req.user.id);
-              if (creator && creator.username) creatorName = creator.username;
-          } catch(e) {}
-      }
-
-      const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-          <h2 style="color: #4f46e5;">New Client Added</h2>
-          <p>A new Client has been added to the CRM.</p>
-          <div style="background-color: #f9fafb; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <p><strong>Added By:</strong> ${creatorName}</p>
-            <p><strong>Name:</strong> ${username}</p>
-            <p><strong>Mobile:</strong> ${mobile || 'N/A'}</p>
-            <p><strong>Email:</strong> ${email || 'N/A'}</p>
-            <p><strong>Requirements:</strong> ${requirements || 'N/A'}</p>
-            <p><strong>Location:</strong> ${location || 'N/A'}</p>
-            <p><strong>Notes:</strong> ${notes || 'N/A'}</p>
-          </div>
-        </div>
-      `;
-      notifyAllStaff(`New Client Added: ${username}`, html, req.user ? req.user.id : null);
-    }
     
     res.status(201).json(safeUser);
   } catch (err) {

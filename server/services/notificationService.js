@@ -1,22 +1,9 @@
 const { getDoc, findOne, addDoc } = require('../mongodb-admin');
-const { createTransporter } = require('../mailer');
 require('dotenv').config();
 
-// Helper to send email safely
+// Helper to send email safely (Disabled)
 async function sendNotification(toEmail, subject, html) {
-  if (!toEmail || toEmail === 'admin-env') return;
-  if (!process.env.GMAIL_USER) return;
-  try {
-    const transporter = await createTransporter();
-    await transporter.sendMail({
-      from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-      to: toEmail,
-      subject,
-      html
-    });
-  } catch (err) {
-    console.error(`[NotificationService] Failed to send email to ${toEmail}:`, err.message);
-  }
+  return;
 }
 
 // Get all admin profiles
