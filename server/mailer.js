@@ -127,12 +127,23 @@ async function notifyAllStaff(subject, html, excludeUserId = null) {
     try {
       const { getCollection } = require('./mongodb-admin');
       const profiles = await getCollection('profiles');
-      const adminEmail = process.env.ADMIN_EMAIL || 'sales.genzneuralx@gmail.com';
+      
+      // Get all staff/admin emails except the user who performed the action
       staffEmails = profiles
-        .filter(p => p.role && p.role !== 'Client' && p.email && p.email.toLowerCase() !== adminEmail.toLowerCase() && String(p.id || p._id) !== String(excludeUserId))
+        .filter(p => p.role && p.role !== 'Client' && p.email && String(p.id || p._id) !== String(excludeUserId))
         .map(p => p.email);
+        
+      // Ensure main admin email is included if main admin didn't perform the action
+      const adminEmail = process.env.ADMIN_EMAIL || 'sales.genzneuralx@gmail.com';
+      if (adminEmail && !staffEmails.some(e => e.toLowerCase() === adminEmail.toLowerCase())) {
+        // Find if triggering user is main admin
+        const triggeringUser = profiles.find(p => String(p.id || p._id) === String(excludeUserId));
+        if (!triggeringUser || (triggeringUser.email && triggeringUser.email.toLowerCase() !== adminEmail.toLowerCase())) {
+          staffEmails.push(adminEmail);
+        }
+      }
     } catch (e) {
-      console.error('[mailer] Error getting profiles for assigned users fallback:', e);
+      console.error('[mailer] Error getting profiles for staff notification:', e);
     }
 
     if (staffEmails.length === 0) return;
@@ -143,7 +154,7 @@ async function notifyAllStaff(subject, html, excludeUserId = null) {
       subject,
       html
     });
-    console.log(`[mailer] Notified ${staffEmails.length} staff members.`);
+    console.log(`[mailer] Notified ${staffEmails.length} staff members (including main admin).`);
   } catch (err) {
     console.error('[mailer] Error notifying all staff:', err);
   }
