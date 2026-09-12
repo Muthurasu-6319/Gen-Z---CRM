@@ -226,25 +226,24 @@ async function notifySystemChange(action, collectionName, data, prevData = null)
            <p style="color: #6B7280; font-size: 12px;">You are receiving this because you are the CRM Administrator.</p>
        `;
        
-       // Send to DB Admins
-       for (const admin of adminProfiles) {
-           // We commented out the email alert based on user request: "intha alart mailum poga venam"
-           // if (admin.email) {
-           //     await sendNotification(admin.email, subject, html);
-           // }
-           await addDoc('notifications', {
-               recipient_profile_id: admin.id,
-               message: headline.replace(/<[^>]*>?/gm, ''), // Strip HTML tags for clean text
-               related_item_type: collectionName,
-               related_item_id: targetData ? targetData.id : null,
-               is_read: 0
-           });
-       }
-       
-       // Fallback to ENV admin email if no DB admins found
-       // if (adminProfiles.length === 0 && process.env.ADMIN_EMAIL) {
-       //     await sendNotification(process.env.ADMIN_EMAIL, subject, html);
-       // }
+        // Send to DB Admins
+        for (const admin of adminProfiles) {
+            if (admin.email) {
+                await sendNotification(admin.email, subject, html);
+            }
+            await addDoc('notifications', {
+                recipient_profile_id: admin.id,
+                message: headline.replace(/<[^>]*>?/gm, ''), // Strip HTML tags for clean text
+                related_item_type: collectionName,
+                related_item_id: targetData ? targetData.id : null,
+                is_read: 0
+            });
+        }
+        
+        // Fallback to ENV admin email if no DB admins found
+        if (adminProfiles.length === 0 && process.env.ADMIN_EMAIL) {
+            await sendNotification(process.env.ADMIN_EMAIL, subject, html);
+        }
     }
   } catch (err) {
       console.error('[NotificationService] Error processing notification:', err);
