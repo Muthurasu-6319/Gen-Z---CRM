@@ -85,8 +85,9 @@ router.post('/', auth, async (req, res) => {
     let creatorName = 'System/Admin';
     if (req.user && req.user.id) {
         try {
-            const [userRows] = await db.query('SELECT username FROM profiles WHERE id = ?', [req.user.id]);
-            if (userRows && userRows.length > 0) creatorName = userRows[0].username;
+            const { getDoc } = require('../mongodb-admin');
+            const creator = await getDoc('profiles', req.user.id);
+            if (creator && creator.username) creatorName = creator.username;
         } catch(e) {}
     }
     
