@@ -10,7 +10,7 @@ module.exports = (req, res, next) => {
 
   // Bypass for dummy token used by the front‑end auto‑login
   if (token === 'dummy-token') {
-    req.user = { id: 'admin-uuid-0001-0001-000000000001', email: 'admin@gmail.com', role: 'Admin' };
+    req.user = { id: 'admin-uuid-0001-0001-000000000001', email: 'sales.genzneuralx@gmail.com', role: 'Admin' };
     return next();
   }
 
