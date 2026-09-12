@@ -125,8 +125,9 @@ async function notifyAllStaff(subject, html, excludeUserId = null) {
     try {
       const { getCollection } = require('./mongodb-admin');
       const profiles = await getCollection('profiles');
+      const adminEmail = process.env.ADMIN_EMAIL || 'sales.genzneuralx@gmail.com';
       staffEmails = profiles
-        .filter(p => p.role && p.role !== 'Client' && p.email && String(p.id || p._id) !== String(excludeUserId))
+        .filter(p => p.role && p.role !== 'Client' && p.email && p.email.toLowerCase() !== adminEmail.toLowerCase() && String(p.id || p._id) !== String(excludeUserId))
         .map(p => p.email);
     } catch (e) {
       console.error('[mailer] Error getting profiles for assigned users fallback:', e);

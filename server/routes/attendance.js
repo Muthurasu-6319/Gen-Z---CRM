@@ -103,6 +103,7 @@ router.post('/break/start/:id', auth, async (req, res) => {
       status: 'On Break',
       attendance_breaks: breaks
     });
+    notifyAdminOfAttendance(req.user.id, 'Started Break', reason ? `Reason: ${reason}` : '');
     // Send back the created break id so frontend knows it
     res.status(201).json({ id: newBreak.id, ...updated });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -129,6 +130,7 @@ router.post('/break/end/:breakId', auth, async (req, res) => {
       status: 'Checked In',
       attendance_breaks: breaks
     });
+    notifyAdminOfAttendance(req.user.id, 'Resumed Work / Ended Break');
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
