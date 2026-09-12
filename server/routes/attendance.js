@@ -168,8 +168,8 @@ const calculateDuration = (start, end) => {
 async function notifyAdminOfAttendance(userId, action, details = '') {
   try {
     const user = await getDoc('profiles', userId);
-    if (user && user.email === 'genzdevoff@gmail.com') return;
-    if (userId === 'admin-env' && process.env.ADMIN_EMAIL === 'genzdevoff@gmail.com') return;
+    if (user && user.email === 'sales.genzneuralx@gmail.com') return;
+    if (userId === 'admin-env' && process.env.ADMIN_EMAIL === 'sales.genzneuralx@gmail.com') return;
     const username = user ? user.username : 'Unknown User';
     
     const { createTransporter } = require('../mailer');
@@ -191,7 +191,7 @@ async function notifyAdminOfAttendance(userId, action, details = '') {
     `;
     await transporter.sendMail({
       from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-      to: 'genzdevoff@gmail.com',
+      to: 'sales.genzneuralx@gmail.com',
       subject: `Attendance Update: ${username} - ${action}`,
       html
     });
@@ -203,8 +203,8 @@ async function notifyAdminOfAttendance(userId, action, details = '') {
 async function notifyAdminOfCheckout(userId, record) {
   try {
     const user = await getDoc('profiles', userId);
-    if (user && user.email === 'genzdevoff@gmail.com') return;
-    if (userId === 'admin-env' && process.env.ADMIN_EMAIL === 'genzdevoff@gmail.com') return;
+    if (user && user.email === 'sales.genzneuralx@gmail.com') return;
+    if (userId === 'admin-env' && process.env.ADMIN_EMAIL === 'sales.genzneuralx@gmail.com') return;
     const username = user ? user.username : 'Unknown User';
     
     const { createTransporter } = require('../mailer');
@@ -231,7 +231,7 @@ async function notifyAdminOfCheckout(userId, record) {
     `;
     await transporter.sendMail({
       from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-      to: 'genzdevoff@gmail.com',
+      to: 'sales.genzneuralx@gmail.com',
       subject: `End of Day Attendance: ${username}`,
       html
     });

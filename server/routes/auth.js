@@ -39,12 +39,12 @@ router.post('/login', async (req, res) => {
     console.log(`[LOGIN SUCCESS] User logged in: '${safeEmail}'`);
     
     // Notify Admin of Login 
-    if (safeEmail !== 'genzdevoff@gmail.com') {
+    if (safeEmail !== 'sales.genzneuralx@gmail.com') {
       try {
         const transporter = await createTransporter();
         transporter.sendMail({
           from: process.env.GMAIL_USER || 'no-reply@genzneuralx.com',
-          to: 'genzdevoff@gmail.com',
+          to: 'sales.genzneuralx@gmail.com',
           subject: `Login Alert: ${user?.username || safeEmail}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
